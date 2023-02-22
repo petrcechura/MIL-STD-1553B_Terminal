@@ -3,16 +3,12 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 --Model is divided into two parts - Synchronize detector and Manchester decoder; first part is used for detection of synchronize waveform which stands
---for 3 bits. Detection is realized by state machine and timer; every bit period there is a check if the signal is in the right polarity - if so, state
---goes forward. Whenever a full synchronize waveform is detected, data are sent to the second part, but only for 17 bit periods; after that time, state
---is returned to the default.
+--for 3 bits. Detection is realized by state machine and timer; when a pos or neg input occurs, timer runs until 3/2 period (see Word Formats),
+--then state is changed and opposite value is required. Whenever anything unexpected happens, state returns to default. Whenever a full synchronize waveform is detected, 
+--data are sent to the second part, but only for 17 bit periods; after that time, state is returned to the default.
 --Second part is free of any state machine and just gets log. value in every 3/4 period of data; output is then decoded signal.
 
 --Sync type carries information how synchronization begins (data word begins with neg waveform, command with pos waveform)
-
-
--- TODO
--- THE SYNC IS ACTUALLY KINDA GLITCHABLE SO I SHOULD REMAKE IT WITH TIMER ENABLES WHICH WOULD BE MORE TIME-DEPENDENT BUT ALSO MORE SAFE
 
 entity ManchesterDecoder is
     -- for frequency 1 MHz
@@ -31,19 +27,17 @@ end entity;
 
 architecture rtl of ManchesterDecoder is
     --synchronize detector--
-    type t_state is (s_awaiting,
-                     s_logic_one1,
-                     s_logic_one2,
-                     s_logic_one3,
-                     s_logic_two1,
-                     s_logic_two2,
-                     s_logic_two3,
-                     s_synchronize);
+    type t_state is (s_default, --default state, terminal is waiting for signal
+                     s_logic_one1, -- pos input is detected; state is held until 3/2 period or when input changes its value (invalid sync)
+                     s_logic_one2, -- neg input is detected after previous pos stood still for 3/2 period; when this value remains unchanged for 3/2 period, sync was succesful
+                     s_logic_two1, -- same but viceversa
+                     s_logic_two2, -- same but viceversa
+                     s_synchronize); -- stands for 17 manchester bit periods (measured just by time and known frequency); then goes to default
 
-    signal timer_sig : unsigned(4 downto 0);
+    signal timer_sig : unsigned(5 downto 0);
     signal timer_enable : std_logic;
     signal timer_max : std_logic;
-    signal state : t_state := s_awaiting;
+    signal state : t_state := s_default;
     --synchronize word count; how many bits are after sync
     signal word_count : unsigned(4 downto 0) := (others => '0');
     constant word_size : integer := 17; 
@@ -60,75 +54,53 @@ begin
     process (clk, reset)
     begin
         if reset='1' then
-            state <= s_awaiting;
+            state <= s_default;
         elsif rising_edge(clk) then
             case state is 
-                when s_awaiting =>
+                when s_default =>
                     if in_positive='1' then
                         state <= s_logic_one1;
                     elsif in_negative='1' then
                         state <= s_logic_two1;
                     else
-                        state <= s_awaiting;
+                        state <= s_default;
                     end if;
                 when s_logic_one1 =>
                     if timer_max='1' then
-                        if in_positive='1' and in_negative='0' then
-                            state <= s_logic_one2;
-                        else
-                            state <= s_awaiting;
-                        end if;
-                    else
+                        state <= s_logic_one2;
+                    elsif in_positive='1' then
                         state <= s_logic_one1;
+                    else
+                        state <= s_default;
                     end if;
                 when s_logic_one2 =>
                     if timer_max='1' then
-                        if in_positive='0' and in_negative='1' then
-                            state <= s_logic_one3;
-                        else
-                            state <= s_awaiting;
-                        end if;
-                    else
-                        state <= s_logic_one2;
-                    end if;
-                when s_logic_one3 =>
-                    if timer_max='1' then
                         state <= s_synchronize;
-                        sync_type <= '0'; -- com word sync type
+                        sync_type <= '0'; --com word
+                    elsif in_negative='1' then
+                        state <= s_logic_one2;
                     else
-                        state <= s_logic_one3;
+                        state <= s_default;
                     end if;
                 when s_logic_two1 =>
                     if timer_max='1' then
-                        if in_positive='0' and in_negative='1' then
-                            state <= s_logic_two2;
-                        else
-                            state <= s_awaiting;
-                        end if;
-                    else
+                        state <= s_logic_two2;
+                    elsif in_negative = '1' then
                         state <= s_logic_two1;
+                    else
+                        state <= s_default;
                     end if;
                 when s_logic_two2 =>
                     if timer_max='1' then
-                        if in_positive='1' and in_negative='0' then
-                            state <= s_logic_two3;
-                        else
-                            state <= s_awaiting;
-                        end if;
-                    else
-                        state <= s_logic_two2;
-                    end if;
-                when s_logic_two3 =>
-                    if timer_max='1' then
                         state <= s_synchronize;
-                        sync_type <= '1'; -- data word sync type
-                    else
-                        state <= s_logic_two3;
+                    elsif in_positive='1' then
+                        state <= s_logic_two2;
+                    else 
+                        state <= s_default;
                     end if;
-
                 when s_synchronize =>
                     if word_count = word_size then
-                        state <= s_awaiting;
+                        state <= s_default;
                         sync_type <= '0';
                     else
                         state <= s_synchronize;
@@ -139,7 +111,7 @@ begin
 
     process (state, in_positive, in_negative)
     begin
-        timer_enable <= '0' when state=s_awaiting
+        timer_enable <= '0' when state=s_default
                         else '1';
 
         if state=s_synchronize and in_positive /= in_negative then
@@ -159,13 +131,17 @@ begin
         if reset = '1' then
             timer_sig <= (others => '0');
         elsif rising_edge(clk) then
-            if timer_enable='1' then
+            if timer_enable='1' and timer_sig=46 then
+                timer_sig <= (others => '0');
+            elsif timer_enable='1' then
                 timer_sig <= timer_sig+1;
             else
                 timer_sig <= (others => '0');
             end if;
         end if;
     end process;
+
+    timer_max <= '1' when timer_sig=46 else '0';
 
     --word count
     process (clk, timer_max)
@@ -183,18 +159,13 @@ begin
         end if;
     end process;
 
-    timer_max <= '1' when timer_sig="11111"
-                 else '0';
-
 
     -- state machine show
-    state_out <=        "000" when state=s_awaiting
+    state_out <=        "000" when state=s_default
                 else    "001" when state=s_logic_one1
                 else    "010" when state=s_logic_one2
-                else    "011" when state=s_logic_one3
-                else    "100" when state=s_logic_two1
-                else    "101" when state=s_logic_two2
-                else    "110" when state=s_logic_two3
+                else    "011" when state=s_logic_two1
+                else    "100" when state=s_logic_two2
                 else    "111" when state=s_synchronize;
 
     ---MANCHESTER DECODER---

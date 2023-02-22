@@ -5,7 +5,7 @@ library work;
     use work.Terminal_package.all;
 
 entity WordCheck is
-    generic map (
+    generic (
         size : integer := 17
     );
     port (
