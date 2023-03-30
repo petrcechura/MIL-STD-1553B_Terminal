@@ -15,10 +15,10 @@ architecture rtl of RecievePart is
 
 begin
 
-    MAN_DEC_I: work.ManchesterDecoder(rtl)
-        port map (
-            
-        );
+    --MAN_DEC_I: work.ManchesterDecoder(rtl)
+     --   port map (
+      --      
+       -- );
 
     
 
