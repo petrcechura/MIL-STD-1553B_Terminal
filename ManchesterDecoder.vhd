@@ -37,7 +37,7 @@ architecture rtl of ManchesterDecoder is
 
     --timer for sync sample
     signal sync_timer_en : std_logic;
-    signal sync_timer_d, sync_timer_q : unsigned(4 downto 0);
+    signal sync_timer_d, sync_timer_q : unsigned(5 downto 0); --64-bit
     signal sync_timer_max : std_logic;
 
     -- MANCHESTER DECODER --
@@ -50,10 +50,14 @@ architecture rtl of ManchesterDecoder is
     signal data_counter_en : std_logic;
     signal data_counter_d, data_counter_q : unsigned(3 downto 0); -- counts to 16 (16-bit word)
     signal data_counter_max : std_logic;
+    
     --data register
-    signal decoded_data : unsigned(3 downto 0);
+    signal decoded_data : unsigned(16 downto 0); -- 17-bit (data + parite)
+    signal parit_bit : std_logic;
 
 
+    --JUST FOR SIMULATION
+    signal state_d_show, state_q_show : unsigned(2 downto 0);
 
 
     
@@ -73,13 +77,13 @@ begin
     end process;
 
     --comb part
-    process (state_q)
+    process (state_q, in_positive, in_negative, sync_timer_max, data_counter_max)
     begin
         case state_q is 
             when s_default =>
                 sync_timer_en <= '0';
                 manchester_timer_en <= '0';
-
+                data_counter_en <= '0';
                 if in_positive= '1' and in_negative='0' then
                     state_d <= s_logic_one1;
                 elsif in_negative = '1' and in_positive = '0' then
@@ -90,6 +94,7 @@ begin
             when s_logic_one1 =>
                 sync_timer_en <= '1';
                 manchester_timer_en <= '0';
+                data_counter_en <= '0';
 
                 if sync_timer_max='1' then
                     state_d <= s_logic_one2;
@@ -102,6 +107,7 @@ begin
             when s_logic_one2 =>
                 sync_timer_en <= '1';
                 manchester_timer_en <= '0';
+                data_counter_en <= '0';
 
                 if sync_timer_max='1' then
                     state_d <= s_logic_one3;
@@ -112,6 +118,7 @@ begin
             when s_logic_one3 =>
                 sync_timer_en <= '1';
                 manchester_timer_en <= '0';
+                data_counter_en <= '0';
 
                 if sync_timer_max='1' then
                     state_d <= s_synchronize;
@@ -124,6 +131,7 @@ begin
             when s_logic_two1 =>
                 sync_timer_en <= '1';
                 manchester_timer_en <= '0';
+                data_counter_en <= '0';
 
                 if sync_timer_max='1' then
                     state_d <= s_logic_two2;
@@ -135,6 +143,7 @@ begin
             when s_logic_two2 =>
                 sync_timer_en <= '1';
                 manchester_timer_en <= '0';
+                data_counter_en <= '0';
 
                 if sync_timer_max='1' then
                     state_d <= s_logic_two3;
@@ -144,6 +153,7 @@ begin
             when s_logic_two3 =>
                 sync_timer_en <= '1';
                 manchester_timer_en <= '0';
+                data_counter_en <= '0';
 
                 if sync_timer_max='1' then
                     state_d <= s_synchronize;
@@ -156,8 +166,14 @@ begin
             when s_synchronize =>
                 sync_timer_en <= '0';
                 manchester_timer_en <= '1';
+                data_counter_en <= '1';
 
-
+                if data_counter_max='1' then
+                    RX_DONE <= '1';
+                    state_d <= s_default;
+                else
+                    state_d <= s_synchronize;
+                end if;
         end case;
     end process;
 
@@ -173,7 +189,7 @@ begin
     end process;
 
     -- comb part
-    process (sync_timer_q)
+    process (sync_timer_q, sync_timer_en)
     begin
         if sync_timer_en='1' then
             sync_timer_d <= sync_timer_q+1;
@@ -181,8 +197,11 @@ begin
             sync_timer_d <= (others => '0');
         end if; 
 
-        if sync_timer_q=sync_timer_q'high then
+        if sync_timer_q=32 then
             sync_timer_max <= '1';
+            sync_timer_d <= (others => '0'); 
+        else
+            sync_timer_max <= '0';
         end if;
 
     end process;
@@ -201,7 +220,7 @@ begin
     end process;
 
     --comb part
-    process (manchester_timer_q)
+    process (manchester_timer_q, manchester_timer_en)
     begin
         if manchester_timer_en='1' then
             manchester_timer_d <= manchester_timer_q + 1;
@@ -220,15 +239,17 @@ begin
     -- DATA REGISTER
     process (clk)
     begin
-        if rising_edge(clk) then
+        if reset='1' then
+            decoded_data <= (others => '0');
+        elsif rising_edge(clk) then
             if state_q=s_synchronize and manchester_timer_sample='1' then
                 if in_positive='1' and in_negative='0' then
-                    for i in 0 to 14 loop
+                    for i in 0 to 15 loop
                         decoded_data(i+1) <= decoded_data(i);
                     end loop;
                         decoded_data(0) <= '1';
                 elsif in_negative='1' and in_positive='0' then
-                    for i in 0 to 14 loop
+                    for i in 0 to 15 loop
                         decoded_data(i+1) <= decoded_data(i);
                     end loop;
                         decoded_data(0) <= '0';
@@ -252,15 +273,17 @@ begin
     end process;
 
     --comb part
-    process (data_counter_q)
+    process (data_counter_q, data_counter_en, manchester_timer_sample)
     begin
-        if data_counter_en='1' then
+        if data_counter_en='1' and manchester_timer_sample='1' then
             data_counter_d <= data_counter_q+1;
+        elsif data_counter_en='1' then
+            data_counter_d <= data_counter_q;
         else
             data_counter_d <= (others => '0');
         end if;
 
-        if data_counter_q=data_counter_q'high then
+        if data_counter_q="1111" then
             data_counter_max <= '1';
         else
             data_counter_max <= '0';
@@ -268,6 +291,25 @@ begin
     end process;
 
 
+
+    --SIMULATION
+    state_d_show <= "000" when state_d=s_default else
+                    "001" when state_d=s_logic_one1 else
+                    "010" when state_d=s_logic_one2 else
+                    "011" when state_d=s_logic_one3 else
+                    "100" when state_d=s_logic_two1 else
+                    "101" when state_d=s_logic_two2 else
+                    "110" when state_d=s_logic_two3 else
+                    "111" when state_d=s_synchronize;
+
+    state_q_show <= "000" when state_q=s_default else
+                    "001" when state_d=s_logic_one1 else
+                    "010" when state_d=s_logic_one2 else
+                    "011" when state_d=s_logic_one3 else
+                    "100" when state_d=s_logic_two1 else
+                    "101" when state_d=s_logic_two2 else
+                    "110" when state_d=s_logic_two3 else
+                    "111" when state_d=s_synchronize;
 
 
 end architecture;

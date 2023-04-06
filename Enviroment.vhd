@@ -16,12 +16,11 @@ architecture rtl of Enviroment is
 
     --TODO                               
     signal s_data_in, s_pos_data_out, s_neg_data_out : std_logic := '0';
-    signal data : std_logic;
+    signal data : std_logic_vector(15 downto 0);
 
     --clock
     constant clk_period : time := 31.25 ns; 
     signal clk : std_logic := '0';
-
     signal rst : std_logic := '0';
 
 begin
@@ -40,8 +39,7 @@ begin
             reset => rst,
             in_positive => s_pos_data_out,
             in_negative => s_neg_data_out,
-            decoded_data => data,
-            state_out => open
+            DATA_OUT => data
         );
     
     MAIN: process
