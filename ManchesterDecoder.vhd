@@ -16,9 +16,8 @@ entity ManchesterDecoder is
         clk   : in std_logic;
         reset : in std_logic;
         in_positive, in_negative : in std_logic;
-        data_out : out std_logic;
-        RX_done : out std_logic;
-        state_out : out std_logic_vector(2 downto 0)
+        DATA_OUT : out std_logic_vector(15 downto 0);
+        RX_DONE : out std_logic
     );
 end entity;
 
@@ -182,7 +181,7 @@ begin
             sync_timer_d <= (others => '0');
         end if; 
 
-        if sync_timer_q = (others => '1') then
+        if sync_timer_q=sync_timer_q'high then
             sync_timer_max <= '1';
         end if;
 
@@ -222,10 +221,51 @@ begin
     process (clk)
     begin
         if rising_edge(clk) then
-            
+            if state_q=s_synchronize and manchester_timer_sample='1' then
+                if in_positive='1' and in_negative='0' then
+                    for i in 0 to 14 loop
+                        decoded_data(i+1) <= decoded_data(i);
+                    end loop;
+                        decoded_data(0) <= '1';
+                elsif in_negative='1' and in_positive='0' then
+                    for i in 0 to 14 loop
+                        decoded_data(i+1) <= decoded_data(i);
+                    end loop;
+                        decoded_data(0) <= '0';
+                else
+                    --ERROR HANDLE TODO 
+                    decoded_data(0) <= 'Z';
+                end if;
+            end if;
         end if;
     end process;
 
+    -- DATA COUNTER
+    --seq part
+    process (clk)
+    begin
+        if reset='1' then
+            data_counter_q <= (others => '0'); 
+        elsif rising_edge(clk) then
+            data_counter_q <= data_counter_d; 
+        end if;
+    end process;
+
+    --comb part
+    process (data_counter_q)
+    begin
+        if data_counter_en='1' then
+            data_counter_d <= data_counter_q+1;
+        else
+            data_counter_d <= (others => '0');
+        end if;
+
+        if data_counter_q=data_counter_q'high then
+            data_counter_max <= '1';
+        else
+            data_counter_max <= '0';
+        end if;
+    end process;
 
 
 

@@ -40,8 +40,7 @@ begin
             reset => rst,
             in_positive => s_pos_data_out,
             in_negative => s_neg_data_out,
-            data_out => data,
-            data_change => open,
+            decoded_data => data,
             state_out => open
         );
     
