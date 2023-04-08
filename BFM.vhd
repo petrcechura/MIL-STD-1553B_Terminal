@@ -30,6 +30,8 @@ begin
             wait until command.start='1';
             Make_sync(pos_data_out, neg_data_out);
             Make_manchester(command.word, pos_data_out, neg_data_out);
+            Make_sync(pos_data_out, neg_data_out);
+            Make_manchester(command.word, pos_data_out, neg_data_out);
         end loop;
         wait;
     end process;
