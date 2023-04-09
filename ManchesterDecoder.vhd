@@ -5,8 +5,24 @@ use ieee.numeric_std.all;
 library work;
     use work.terminal_package.all;
     
+-- SYNCHRONIZE DETECTOR
+    -- (mealy)state machine
+    -- detects synchronize waveform via /sync_timer/
+    -- if the full synchronize waveform is detected, the state s_synchronize is on (-> sampling by manchester decoder)
 
-
+-- MANCHESTER DECODER
+    -- log. value is sampled in 3/4 period via /manchester_timer/
+    -- amount of periods is counted by /data_counter/
+        -- when the maximum (17) is detected, state goes to default (and data are valid)
+    -- if an error occures (wrong parite, unrecognized coding), data are invalid and error is reported to terminal via RX_DONE output
+        -- data_error means failed sampling (detected by /manchester timer/)
+        -- error_timer_max means invalid length of manchester coding (detected by /error_timer/)
+        -- POSSIBLE ERROR HANDELINGS
+            -- 2 synchronize waveforms next to each other -- tested, works
+            -- wrong parite -- tested, works
+            -- transfer interrupted -- to do test (should work)
+            -- transfer started without synchronize waveform -- tested, works (error isn't reported -> this can be changed easily)
+            -- valid word is sent right after (invalid) word, thats without sync waveform -- tested, doesnt work -- is it neccesary? 
 
 
 
@@ -42,9 +58,9 @@ architecture rtl of ManchesterDecoder is
     signal state_q, state_d : t_state;
 
     --timer for sync sample
-    signal sync_timer_en : std_logic;
+    signal sync_timer_en, sync_timer_mid_en : std_logic;
     signal sync_timer_d, sync_timer_q : unsigned(5 downto 0); --64-bit
-    signal sync_timer_max : std_logic;
+    signal sync_timer_max, sync_timer_mid : std_logic;
     
     --sync type holder
     signal sync_type_d, sync_type_q : std_logic;
@@ -53,16 +69,20 @@ architecture rtl of ManchesterDecoder is
     --timer for data sample
     signal manchester_timer_en : std_logic;
     signal manchester_timer_d, manchester_timer_q : unsigned(4 downto 0);
-    signal manchester_timer_sample : std_logic;
+    signal manchester_timer_sample, manchester_timer_max : std_logic;
 
     --counter for data count
     signal data_counter_en : std_logic;
-    signal data_counter_d, data_counter_q : unsigned(4 downto 0); -- counts to 32 (16-bit word)
+    signal data_counter_d, data_counter_q : unsigned(4 downto 0); -- counts to 32 (17-bit word)
     signal data_counter_max : std_logic;
     
+    --timer for error detection
+    signal error_timer_pos_d, error_timer_pos_q, error_timer_neg_d, error_timer_neg_q : unsigned(5 downto 0);
+    signal error_timer_en : std_logic;
+    signal error_timer_max : std_logic;
+
     --data register
     signal decoded_data : unsigned(16 downto 0); -- 17-bit (data + parite)
-    signal parit_bit : std_logic;
     signal data_error : std_logic;
 
 
@@ -88,13 +108,15 @@ begin
     end process;
 
     --comb part
-    process (state_q, in_positive, in_negative, sync_timer_max, data_counter_max)
+    process (state_q, in_positive, in_negative, sync_timer_max, sync_timer_mid, data_counter_max, sync_type_q, decoded_data, data_error, error_timer_max)
     begin
         case state_q is 
             when s_default =>
                 sync_timer_en <= '0';
+                sync_timer_mid_en <= '0';
                 manchester_timer_en <= '0';
                 data_counter_en <= '0';
+                error_timer_en <= '0';
                 RX_DONE <= "00";
 
                 if in_positive= '1' and in_negative='0' then
@@ -106,8 +128,10 @@ begin
                 end if;
             when s_logic_one1 =>
                 sync_timer_en <= '1';
+                sync_timer_mid_en <= '0';
                 manchester_timer_en <= '0';
                 data_counter_en <= '0';
+                error_timer_en <= '0';
                 RX_DONE <= "00";
 
                 if sync_timer_max='1' then
@@ -119,12 +143,14 @@ begin
                 end if;
 
             when s_logic_one2 =>
-                sync_timer_en <= '1';
+                sync_timer_en <= '0';
+                sync_timer_mid_en <= '1';
                 manchester_timer_en <= '0';
                 data_counter_en <= '0';
+                error_timer_en <= '0';
                 RX_DONE <= "00";
 
-                if sync_timer_max='1' then
+                if sync_timer_mid='1' then
                     state_d <= s_logic_one3;
                 else
                     state_d <= s_logic_one2;
@@ -132,8 +158,10 @@ begin
 
             when s_logic_one3 =>
                 sync_timer_en <= '1';
+                sync_timer_mid_en <= '0';
                 manchester_timer_en <= '0';
                 data_counter_en <= '0';
+                error_timer_en <= '0';
                 RX_DONE <= "00";
 
                 if sync_timer_max='1' then
@@ -147,8 +175,10 @@ begin
 
             when s_logic_two1 =>
                 sync_timer_en <= '1';
+                sync_timer_mid_en <= '0';
                 manchester_timer_en <= '0';
                 data_counter_en <= '0';
+                error_timer_en <= '0';
                 RX_DONE <= "00";
 
                 if sync_timer_max='1' then
@@ -159,20 +189,24 @@ begin
                     state_d <= s_default;
                 end if;
             when s_logic_two2 =>
-                sync_timer_en <= '1';
+                sync_timer_en <= '0';
+                sync_timer_mid_en <= '1';
                 manchester_timer_en <= '0';
                 data_counter_en <= '0';
+                error_timer_en <= '0';
                 RX_DONE <= "00";
 
-                if sync_timer_max='1' then
+                if sync_timer_mid='1' then
                     state_d <= s_logic_two3;
                 else
                     state_d <= s_logic_two2;
                 end if;
             when s_logic_two3 =>
                 sync_timer_en <= '1';
+                sync_timer_mid_en <= '0';
                 manchester_timer_en <= '0';
                 data_counter_en <= '0';
+                error_timer_en <= '0';
                 RX_DONE <= "00";
 
                 if sync_timer_max='1' then
@@ -186,23 +220,22 @@ begin
 
             when s_synchronize =>
                 sync_timer_en <= '0';
+                sync_timer_mid_en <= '0';
                 manchester_timer_en <= '1';
                 data_counter_en <= '1';
+                error_timer_en <= '1';
                 RX_DONE <= "00";
 
-                if data_counter_max='1' and sync_type_q='0' and decoded_data(16)=parita then
+                if data_counter_max='1' and sync_type_q='0' and decoded_data(0)=parita then
                     RX_DONE <= "01"; --command word
-                    DATA_OUT <= std_logic_vector(decoded_data(16 downto 1));
-
                     state_d <= s_default;
 
-                elsif data_counter_max='1' and sync_type_q='1' and decoded_data(16)=parita then
+                elsif data_counter_max='1' and sync_type_q='1' and decoded_data(0)=parita then
                     RX_DONE <= "10"; --data word
-                    DATA_OUT <= std_logic_vector(decoded_data(16 downto 1));
 
                     state_d <= s_default;
                 
-                elsif data_error='1' or (data_counter_max='1' and decoded_data(0)/=parita) then
+                elsif data_error='1' or error_timer_max='1' or (data_counter_max='1' and decoded_data(0)/=parita) then
                     RX_DONE <= "11"; --error 
 
                     state_d <= s_default;
@@ -211,6 +244,8 @@ begin
                 end if;
         end case;
     end process;
+
+    DATA_OUT <= std_logic_vector(decoded_data(16 downto 1));
 
     -- SYNC TIMER SAMPLE
     --seq part
@@ -226,17 +261,24 @@ begin
     -- comb part
     process (sync_timer_q, sync_timer_en)
     begin
-        if sync_timer_en='1' then
+        if sync_timer_en='1' or sync_timer_mid_en='1' then
             sync_timer_d <= sync_timer_q+1;
         else
             sync_timer_d <= (others => '0');
         end if; 
 
-        if sync_timer_q=32 then
+        if sync_timer_q=42 and sync_timer_en='1' then
             sync_timer_max <= '1';
             sync_timer_d <= (others => '0'); 
         else
             sync_timer_max <= '0';
+        end if;
+
+        if sync_timer_q=8 and sync_timer_mid_en='1' then
+            sync_timer_mid <= '1';
+            sync_timer_d <= (others => '0'); 
+        else
+            sync_timer_mid <= '0';
         end if;
 
     end process;
@@ -269,6 +311,11 @@ begin
             manchester_timer_sample <= '0';
         end if;
 
+        if manchester_timer_q=32-1 then
+            manchester_timer_max <= '1';
+        else
+            manchester_timer_max <= '0';
+        end if;
     end process;
 
     -- DATA REGISTER
@@ -311,9 +358,9 @@ begin
     end process;
 
     --comb part
-    process (data_counter_q, data_counter_en, manchester_timer_sample)
+    process (data_counter_q, data_counter_en, manchester_timer_max)
     begin
-        if data_counter_en='1' and manchester_timer_sample='1' then
+        if data_counter_en='1' and manchester_timer_max='1' then
             data_counter_d <= data_counter_q+1;
         elsif data_counter_en='1' then
             data_counter_d <= data_counter_q;
@@ -326,6 +373,44 @@ begin
         else
             data_counter_max <= '0';
         end if;
+    end process;
+
+    -- ERROR TIMER
+    --seq part
+    process (clk)
+    begin
+        if rising_edge(clk) then
+            if reset='1' then
+                error_timer_pos_q <= (others => '0');
+                error_timer_neg_q <= (others => '0');
+            else
+                error_timer_pos_q <= error_timer_pos_d;
+                error_timer_neg_q <= error_timer_neg_d;
+            end if; 
+        end if;
+    end process;
+
+    --comb part
+    process (error_timer_en, error_timer_en, error_timer_pos_q, error_timer_neg_q, in_positive, in_negative)
+    begin
+        if error_timer_en ='1' and in_positive='1' then
+            error_timer_pos_d <= error_timer_pos_q+1;
+        else
+            error_timer_pos_d <= (others => '0');
+        end if;
+
+        if error_timer_en ='1' and in_negative='1' then
+            error_timer_neg_d <= error_timer_neg_q+1;
+        else
+            error_timer_neg_d <= (others => '0');
+        end if;
+        
+        if error_timer_pos_q=42 or error_timer_neg_q=42 then
+            error_timer_max <= '1';
+        else
+            error_timer_max <= '0';
+        end if;
+
     end process;
 
 

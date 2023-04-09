@@ -1,5 +1,6 @@
 library ieee;
     use ieee.std_logic_1164.all;
+    use ieee.numeric_std.all;
 
 
 package Terminal_package is
@@ -28,6 +29,7 @@ package Terminal_package is
     end record;
 
     constant parita : std_logic := '1';
+    constant terminal_address : std_logic_vector(4 downto 0) := "11100";
 
 
 

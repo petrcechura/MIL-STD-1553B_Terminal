@@ -26,12 +26,24 @@ begin
 
     MAIN: process
     begin
+        pos_data_out <= '0';
+        neg_data_out <= '0';
         while (command.test_done /= '1') loop
             wait until command.start='1';
             Make_sync(pos_data_out, neg_data_out);
+            Make_sync(pos_data_out, neg_data_out);
+            Make_manchester(command.word, pos_data_out, neg_data_out);
+            pos_data_out <= '0';
+            neg_data_out <= '0';
+            wait for 1 us;
+            Make_sync(pos_data_out, neg_data_out);
             Make_manchester(command.word, pos_data_out, neg_data_out);
             Make_sync(pos_data_out, neg_data_out);
             Make_manchester(command.word, pos_data_out, neg_data_out);
+            
+            
+            pos_data_out <= '0';
+            neg_data_out <= '0';
         end loop;
         wait;
     end process;
