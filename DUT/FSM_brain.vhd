@@ -12,11 +12,11 @@ entity FSM_brain is
         clk   : in std_logic;
         reset : in std_logic;
         rx_done : in std_logic_vector(1 downto 0);
-        data_in : in std_logic_vector(15 downto 0);
+        decoder_data_in : in std_logic_vector(15 downto 0);
         MEM_WR : out std_logic;
         MEM_DATA_OUT : out std_logic_vector(15 downto 0);
-        MEM_RD : out std_logic
-        --mem_read
+        MEM_RD : out std_logic;
+        mem_data_in : in std_logic(15 downto 0)
     );
 end entity;
 
@@ -24,15 +24,15 @@ end entity;
 architecture rtl of FSM_brain is
 
     type t_state is (s_IDLE,
-                    s_mode_code,
-                    s_data_rx,
-                    s_mem_wr,
-                    s_mem_wr_ok,
-                    s_mem_wr_err,
-                    s_data_tx,
-                    s_mem_rd_ok,
-                    s_mem_read,
-                    s_mem_rd_err,
+                    S_MODE_CODE,
+                    S_DATA_RX,
+                    S_MEM_WR,
+                    S_MEM_WR_OK,
+                    S_MEM_WR_ERR,
+                    S_DATA_TX,
+                    S_MEM_RD_OK,
+                    S_MEM_READ,
+                    S_MEM_RD_ERR,
                     s_NFM
                     );
     signal state_d, state_q : t_state;
@@ -64,9 +64,9 @@ begin
 
 
                         if data_in(11)='1' then --T/R bit
-                            state_d <= s_mem_read;
+                            state_d <= S_MEM_READ;
                         else
-                            state_d <= s_data_rx;
+                            state_d <= S_DATA_RX;
                         end if;
                     else
                         state_d <= s_NFM;
@@ -83,23 +83,23 @@ begin
                 end if;
 
                 
-            when s_data_rx =>
+            when S_DATA_RX =>
 
-            when s_mem_wr =>
+            when S_MEM_WR =>
 
-            when s_mem_wr_err =>
+            when S_MEM_WR_ERR =>
 
-            when s_mem_wr_ok =>
+            when S_MEM_WR_OK =>
 
-            when s_mem_read =>
+            when S_MEM_READ =>
 
-            when s_mem_rd_err =>
+            when S_MEM_RD_ERR =>
 
-            when s_mem_rd_ok =>
+            when S_MEM_RD_OK =>
 
             when s_NFM =>
 
-            when s_mode_code =>
+            when S_MODE_CODE =>
 
         end case;
 
