@@ -6,20 +6,30 @@ library work;
     use work.Terminal_package.all;
 
 
+
+
 entity ManchesterEncoder is
     port (
         clk   : in std_logic;
         reset : in std_logic;
-        data_in : in std_logic_vector(16 downto 0);
-        data_wr : in std_logic;
-        TX_en : in std_logic_vector(1 downto 0);
-        OUT_POSITIVE : out std_logic;
+        data_in : in std_logic_vector(16 downto 0);     -- data to be sent
+        data_wr : in std_logic;                         -- data to be sent are written to a register via this wr_en bit
+        TX_en : in std_logic_vector(1 downto 0);        -- 01 = command word, 10 = data word -> enables transfer; "00" -> stops transfer
+        OUT_POSITIVE : out std_logic;  
         OUT_NEGATIVE : out std_logic;
-        TX_DONE : out std_logic
+        TX_DONE : out std_logic                         -- signalization to a terminal that transfer has been completed succesfully
     );
 end entity;
 
 architecture rtl of ManchesterEncoder is
+
+    -- State machine
+    type t_state is (S_IDLE,
+                     S_SYNC_POS,
+                     S_SYNC_NEG,
+                     S_ENCODE);
+    signal state_d, state_q : t_state;
+
 
     -- Frequency divider (32 to 1 MHz)
     signal freq_divider_d, freq_divider_q : unsigned(4 downto 0);
@@ -29,6 +39,7 @@ architecture rtl of ManchesterEncoder is
 
     -- Data counter
     signal data_counter_d, data_counter_q : unsigned(5 downto 0);
+    signal data_counter_en : std_logic;
     signal data_counter_max, data_counter_sync : std_logic;
 
     -- data essentials
@@ -38,30 +49,74 @@ architecture rtl of ManchesterEncoder is
 
 begin
 
-    -- OUTPUT ENCODER
+    -- STATE MACHINE
     --seq part
     process (clk)
     begin
-        if rising_edge(clk) then
-            if TX_en = "01" then
-                if data_counter_sync = '1' and bus_clock_rise = '1' then
-                    
-                elsif data_counter_max = '1' then
-
-                else
-                
-                end if;
-            end if;
+        if reset = '1' then
+            state_q <= S_IDLE;
+        elsif rising_edge(clk) then
+            state_q <= state_d;
         end if;
     end process;
 
     --comb part
-    process ()
+    process (all)
     begin
-        
+        case state_q is
+            when S_IDLE =>
+                data_counter_en <= '0';
+                freq_divider_en <= '0';
+                OUT_POSITIVE <= '0';
+                OUT_NEGATIVE <= '0';
+
+                if TX_en = "01" then
+                    state_d <= S_SYNC_POS;
+                elsif TX_en = "10" then
+                    state_d <= S_SYNC_NEG;
+                else
+                    state_d <= S_IDLE;
+                end if;
+            when S_SYNC_POS =>
+                data_counter_en <= '1';
+                freq_divider_en <= '0';
+                OUT_POSITIVE <= '1';
+                OUT_NEGATIVE <= '0';
+
+                if TX_en = "01" and data_counter_q = 3 then
+                    state_d <= S_SYNC_NEG;
+                elsif TX_en = "10" and data_counter_q = 6 then
+                    state_d <= S_ENCODE;
+                elsif TX_en = "01" or TX_en = "10" then
+                    state_d <= S_SYNC_POS;
+                else
+                    state_d <= S_IDLE;
+                end if;
+                    
+            when S_SYNC_NEG =>
+                data_counter_en <= '1';
+                freq_divider_en <= '0';
+                OUT_POSITIVE <= '0';
+                OUT_NEGATIVE <= '1';
+
+                if TX_en = "10" and data_counter_q = 3 then
+                    state_d <= S_SYNC_POS;
+                elsif TX_en = "01" and data_counter_q = 6 then
+                    state_d <= S_ENCODE;
+                elsif TX_en = "01" or TX_en = "10" then
+                    state_d <= S_SYNC_NEG;
+                else
+                    state_d <= S_IDLE;
+                end if;
+
+            when S_ENCODE =>
+                
+        end case;
     end process;
 
-    -- Data counter
+
+
+    -- Data counter (REDO)
     --seq part
     process (clk)
     begin
@@ -142,21 +197,13 @@ begin
     --comb part
     process (freq_divider_q, freq_divider_en)
     begin
-        freq_divider_d <= freq_divider_q + 1;
-
-        if freq_divider_q = 0 then
-            bus_clock_rise <= '1';
+        if freq_divider_en = '1' then
+            freq_divider_d <= freq_divider_q + 1;
         else
-            bus_clock_rise <= '0';
-        end if;
-
-        if freq_divider_q = 16 then
-            bus_clock_fall <= '1';
-        else
-            bus_clock_fall <= '0';
-        end if;
+            freq_divider_d <= (others => '0');
+        end if; 
     end process;
 
-    bus_clock <= not freq_divider_q(4);
+    bus_clock <= freq_divider_q(4);
 
 end architecture;
