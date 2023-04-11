@@ -1,0 +1,38 @@
+
+POŽADAVKY NA TERMINÁL
+• Správné dekódování signálu
+• Zpracování přijatých dat a jejich předání subsystému
+• Detekce a určení chyb, které nastaly při přenosu
+• Odeslání dat do sběrnice podle pravidel komunikace
+
+ROZEPSANÉ POŽADAVKY NA TERMINÁL (Náměty na testy)
+* Frekvence FPGA: 32 MHz
+* Frekvence linky: 1 MHz
+* Rozpoznání synchronizační vlny a správné dekódování signálu Manchester
+* Odesílání signálu podle standardu MIL-STD-1553B (synchronize + manchester)
+* Přijmout data od řadiče a uložit je do určeného subsystému dle standardu MIL-STD-1553B
+* Přijmout požadavek na odeslání dat z příslušného subsystému a provést jej dle standardu MIL-STD-1553B
+* Rozpoznat chybu v přenosu bitů a adekvátně na ni reagovat (stavové slovo)
+	* chybná parita
+	* chybná podoba kódování
+	* přenos nezačal synchronizačním impulzem
+* Rozpoznat chybnou zprávu (požadavek) a adekvátně na něj reagovat (stavové slovo)
+	* neplatný přístup do paměti
+	* nesprávný počet očekávaných datových slov (! standard nedefinuje dobu mezi slovy → JE POTŘEBA ZVOLIT !)
+* Správně reagovat na zprávu pro jiný terminál (NFM)
+* Schopnost přijmout zprávu v režimu Broadcast a adekvátně na ni reagovat
+* Odpovědět na požadavek řadiče v době mezi 4 až 12 us (→ doba odezvy)
+* Přijmout požadavek na Mode code a podle druhu požadavku jej splnit/vystavit na výstup
+	* synchronizace (vystavení hodnoty na výstup)
+	* odeslání stavového slova
+
+
+
+-------------TESTY-------------
+
+*TEST Č. 1*
+Účel:
+
+Popis testu:
+
+
