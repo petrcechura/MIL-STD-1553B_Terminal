@@ -4,6 +4,10 @@ library ieee;
 library work;
     use work.Terminal_package.all;
 
+--*********************************************
+--	OLD PART -- PROBABLY WON'T BE USED
+--*********************************************
+
 entity WordCheck is
     generic (
         size : integer := 17
