@@ -10,7 +10,7 @@ end entity;
 
 architecture rtl of Enviroment is
 
-    signal com : t_bfm_com := (word => "01010101111001111",
+    signal com : t_bfm_com := (word => "01000101111001111",
                                start => '0',
                                test_done => '0');
 

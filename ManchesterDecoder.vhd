@@ -1,4 +1,4 @@
-library ieee;
+ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
@@ -84,6 +84,7 @@ architecture rtl of ManchesterDecoder is
     --data register
     signal decoded_data : unsigned(16 downto 0); -- 17-bit (data + parite)
     signal data_error : std_logic;
+    signal parite_bit : std_logic;
 
 
     --JUST FOR SIMULATION
@@ -226,16 +227,16 @@ begin
                 error_timer_en <= '1';
                 RX_DONE <= "00";
 
-                if data_counter_max='1' and sync_type_q='0' and decoded_data(0)=parita then
+                if data_counter_max='1' and sync_type_q='0' and decoded_data(0)=parite_bit then
                     RX_DONE <= "01"; --command word
                     state_d <= s_default;
 
-                elsif data_counter_max='1' and sync_type_q='1' and decoded_data(0)=parita then
+                elsif data_counter_max='1' and sync_type_q='1' and decoded_data(0)=parite_bit then
                     RX_DONE <= "10"; --data word
 
                     state_d <= s_default;
                 
-                elsif data_error='1' or error_timer_max='1' or (data_counter_max='1' and decoded_data(0)/=parita) then
+                elsif data_error='1' or error_timer_max='1' or (data_counter_max='1' and decoded_data(0)/=parite_bit) then
                     RX_DONE <= "11"; --error 
 
                     state_d <= s_default;
@@ -246,6 +247,22 @@ begin
     end process;
 
     DATA_OUT <= std_logic_vector(decoded_data(16 downto 1));
+
+    -- parite bit calc
+    process (decoded_data)
+        variable temp : unsigned(16 downto 1);
+    begin
+        temp(16) := decoded_data(16);
+        for i in 15 downto 1 loop
+            temp(i) := temp(i+1) xor decoded_data(i);
+        end loop;
+        if parita='1' then -- odd parite
+            parite_bit <= temp(1);
+        else -- even parite
+            parite_bit <= not temp(1);
+        end if;
+    end process;
+
 
     -- SYNC TIMER SAMPLE
     --seq part

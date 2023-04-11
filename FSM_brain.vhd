@@ -12,7 +12,11 @@ entity FSM_brain is
         clk   : in std_logic;
         reset : in std_logic;
         rx_done : in std_logic_vector(1 downto 0);
-        data_in : in std_logic_vector(15 downto 0)
+        data_in : in std_logic_vector(15 downto 0);
+        MEM_WR : out std_logic;
+        MEM_DATA_OUT : out std_logic_vector(15 downto 0);
+        MEM_RD : out std_logic
+        --mem_read
     );
 end entity;
 
@@ -34,8 +38,8 @@ architecture rtl of FSM_brain is
     signal state_d, state_q : t_state;
 
     -- COMMAND WORD essentials
-    signal subaddress : std_logic_vector(4 downto 0);
-    signal data_word_count : std_logic_vector(4 downto 0);
+    signal subaddress_d, subaddress_q : std_logic_vector(4 downto 0);
+    signal data_word_count_d, data_word_count_q : std_logic_vector(4 downto 0);
 
 begin
 
@@ -49,7 +53,7 @@ begin
     end process;
 
     --comb part
-    process (all)
+    process (data_in)
     begin
         case state_q is
             when s_IDLE =>
@@ -59,10 +63,10 @@ begin
                         -- save command word essentials
 
 
-                        if data_in(11)='1' then
-                        state_d <= s_mem_read;
+                        if data_in(11)='1' then --T/R bit
+                            state_d <= s_mem_read;
                         else
-                        state_d <= s_data_rx;
+                            state_d <= s_data_rx;
                         end if;
                     else
                         state_d <= s_NFM;
