@@ -16,7 +16,7 @@ entity FSM_brain is
         MEM_WR : out std_logic;
         MEM_DATA_OUT : out std_logic_vector(15 downto 0);
         MEM_RD : out std_logic;
-        mem_data_in : in std_logic(15 downto 0)
+        mem_data_in : in std_logic_vector(15 downto 0)
     );
 end entity;
 
