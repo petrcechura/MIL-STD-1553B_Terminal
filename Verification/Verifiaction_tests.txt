@@ -18,7 +18,7 @@ ROZEPSANÉ POŽADAVKY NA TERMINÁL (Náměty na testy)
 	* přenos nezačal synchronizačním impulzem
 * Rozpoznat chybnou zprávu (požadavek) a adekvátně na něj reagovat (stavové slovo)
 	* neplatný přístup do paměti
-	* nesprávný počet očekávaných datových slov (! standard nedefinuje dobu mezi slovy → JE POTŘEBA ZVOLIT !)
+	* nesprávný počet očekávaných datových slov (! standard nedefinuje maximální dobu mezi slovy (resp. uvádí, že má být nulová) → JE POTŘEBA ZVOLIT !)
 * Správně reagovat na zprávu pro jiný terminál (NFM)
 * Schopnost přijmout zprávu v režimu Broadcast a adekvátně na ni reagovat
 * Odpovědět na požadavek řadiče v době mezi 4 až 12 us (→ doba odezvy)
