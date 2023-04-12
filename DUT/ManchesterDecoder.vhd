@@ -6,7 +6,7 @@ library work;
     use work.terminal_package.all;
     
 -- SYNCHRONIZE DETECTOR
-    -- (mealy)state machine
+    -- (mealy) state machine
     -- detects synchronize waveform via /sync_timer/
     -- if the full synchronize waveform is detected, the state s_synchronize is on (-> sampling by manchester decoder)
 
@@ -23,8 +23,6 @@ library work;
             -- transfer interrupted -- to do test (should work)
             -- transfer started without synchronize waveform -- tested, works (error isn't reported -> this can be changed easily)
             -- valid word is sent right after (invalid) word, thats without sync waveform -- tested, doesnt work -- is it neccesary? 
-
-
 
 -- RX DONE (2-bit)
     -- 00 = idle state (no data)
@@ -54,7 +52,7 @@ architecture rtl of ManchesterDecoder is
                      s_logic_two1, 
                      s_logic_two2,
                      s_logic_two3, 
-                     s_synchronize); -- stands for 17 manchester bit periods (measured just by time and known frequency); then goes to default
+                     s_synchronize);
     signal state_q, state_d : t_state;
 
     --timer for sync sample
