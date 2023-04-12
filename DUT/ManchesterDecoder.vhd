@@ -82,7 +82,6 @@ architecture rtl of ManchesterDecoder is
     --data register
     signal decoded_data : unsigned(16 downto 0); -- 17-bit (data + parite)
     signal data_error : std_logic;
-    signal parite_bit : std_logic;
 
     --parity flip flop
     signal parity_bit_d, parity_bit_q : std_logic;
@@ -116,6 +115,7 @@ begin
             data_counter_q <= data_counter_d; 
             error_timer_pos_q <= error_timer_pos_d;
             error_timer_neg_q <= error_timer_neg_d;
+            parity_bit_q <= parity_bit_d;
         end if;
     end process;
 
@@ -206,16 +206,16 @@ begin
                 data_counter_en <= '1';
                 error_timer_en <= '1';
 
-                if data_counter_max='1' and sync_type_q='0' and decoded_data(0)=parite_bit then
+                if data_counter_max = '1' and sync_type_q = '0' and decoded_data(0) = parity_bit_q then
                     RX_DONE <= "01"; --command word
                     state_d <= S_IDLE;
 
-                elsif data_counter_max='1' and sync_type_q='1' and decoded_data(0)=parite_bit then
+                elsif data_counter_max = '1' and sync_type_q = '1' and decoded_data(0) = parity_bit_q then
                     RX_DONE <= "10"; --data word
 
                     state_d <= S_IDLE;
                 
-                elsif data_error='1' or error_timer_max='1' or (data_counter_max='1' and decoded_data(0)/=parite_bit) then
+                elsif data_error = '1' or error_timer_max = '1' or (data_counter_max = '1' and decoded_data(0) /= parity_bit_q) then
                     RX_DONE <= "11"; --error 
 
                     state_d <= S_IDLE;
@@ -227,22 +227,10 @@ begin
 
     DATA_OUT <= std_logic_vector(decoded_data(16 downto 1));
 
-    -- parite bit calc
-    process (decoded_data)
-        variable temp : unsigned(16 downto 1);
-    begin
-        temp(16) := decoded_data(16);
-        for i in 15 downto 1 loop
-            temp(i) := temp(i+1) xor decoded_data(i);
-        end loop;
-        if PARITY = '1' then   -- odd parite
-            parite_bit <= temp(1);
-        else                   -- even parite
-            parite_bit <= not temp(1);
-        end if;
-    end process;
 
-    process (parity_bit_q)
+    --PARITY CALCULATION
+    -- comb part
+    process (parity_bit_q, manchester_timer_sample, in_positive, in_negative)
     begin
         if manchester_timer_sample = '1' and in_positive = '1' then
             parity_bit_d <= '1' xor parity_bit_q;
@@ -258,20 +246,20 @@ begin
     -- comb part
     process (sync_timer_q, sync_timer_en)
     begin
-        if sync_timer_en='1' or sync_timer_mid_en='1' then
+        if sync_timer_en = '1' or sync_timer_mid_en = '1' then
             sync_timer_d <= sync_timer_q+1;
         else
             sync_timer_d <= (others => '0');
         end if; 
 
-        if sync_timer_q=42 and sync_timer_en='1' then
+        if sync_timer_q = 42 and sync_timer_en = '1' then
             sync_timer_max <= '1';
             sync_timer_d <= (others => '0'); 
         else
             sync_timer_max <= '0';
         end if;
 
-        if sync_timer_q=BUS_PERIOD/4 and sync_timer_mid_en='1' then
+        if sync_timer_q = BUS_PERIOD/4 and sync_timer_mid_en = '1' then
             sync_timer_mid <= '1';
             sync_timer_d <= (others => '0'); 
         else
@@ -292,13 +280,13 @@ begin
             manchester_timer_d <= (others => '0'); 
         end if;
 
-        if manchester_timer_q = (3 * BUS_PERIOD/2) then
+        if manchester_timer_q = (3 * BUS_PERIOD/4) then
             manchester_timer_sample <= '1';
         else
             manchester_timer_sample <= '0';
         end if;
 
-        if manchester_timer_q=BUS_PERIOD-1 then
+        if manchester_timer_q = BUS_PERIOD-1 then
             manchester_timer_max <= '1';
         else
             manchester_timer_max <= '0';
@@ -308,18 +296,18 @@ begin
     -- DATA REGISTER
     process (clk)
     begin
-        if reset='1' then
+        if reset = '1' then
             decoded_data <= (others => '0');
             data_error <= '0';
         elsif rising_edge(clk) then
-            if state_q=S_DATA_REC and manchester_timer_sample='1' then
-                if in_positive='1' and in_negative='0' then
+            if state_q = S_DATA_REC and manchester_timer_sample = '1' then
+                if in_positive = '1' and in_negative = '0' then
                     data_error <= '0';
                     for i in 0 to 15 loop
                         decoded_data(i+1) <= decoded_data(i);
                     end loop;
                         decoded_data(0) <= '1';
-                elsif in_negative='1' and in_positive='0' then
+                elsif in_negative = '1' and in_positive = '0' then
                     data_error <= '0';
                     for i in 0 to 15 loop
                         decoded_data(i+1) <= decoded_data(i);
@@ -337,15 +325,15 @@ begin
     --comb part
     process (data_counter_q, data_counter_en, manchester_timer_max)
     begin
-        if data_counter_en='1' and manchester_timer_max='1' then
+        if data_counter_en = '1' and manchester_timer_max = '1' then
             data_counter_d <= data_counter_q+1;
-        elsif data_counter_en='1' then
+        elsif data_counter_en = '1' then
             data_counter_d <= data_counter_q;
         else
             data_counter_d <= (others => '0');
         end if;
 
-        if data_counter_q=17 then
+        if data_counter_q = 17 then
             data_counter_max <= '1';
         else
             data_counter_max <= '0';
@@ -356,13 +344,13 @@ begin
     --comb part
     process (error_timer_en, error_timer_en, error_timer_pos_q, error_timer_neg_q, in_positive, in_negative)
     begin
-        if error_timer_en ='1' and in_positive='1' then
+        if error_timer_en = '1' and in_positive = '1' then
             error_timer_pos_d <= error_timer_pos_q+1;
         else
             error_timer_pos_d <= (others => '0');
         end if;
 
-        if error_timer_en ='1' and in_negative='1' then
+        if error_timer_en = '1' and in_negative = '1' then
             error_timer_neg_d <= error_timer_neg_q+1;
         else
             error_timer_neg_d <= (others => '0');
@@ -377,23 +365,23 @@ begin
     end process;
 
     --SIMULATION
-    state_d_show <= "000" when state_d=S_IDLE else
-                    "001" when state_d=S_CMD_SYNC_1 else
-                    "010" when state_d=S_CMD_SYNC_2 else
-                    "011" when state_d=S_CMD_SYNC_3 else
-                    "100" when state_d=S_DATA_SYNC_1 else
-                    "101" when state_d=S_DATA_SYNC_2 else
-                    "110" when state_d=S_DATA_SYNC_3 else
-                    "111" when state_d=S_DATA_REC;
-
-    state_q_show <= "000" when state_q=S_IDLE else
-                    "001" when state_q=S_CMD_SYNC_1 else
-                    "010" when state_q=S_CMD_SYNC_2 else
-                    "011" when state_q=S_CMD_SYNC_3 else
-                    "100" when state_q=S_DATA_SYNC_1 else
-                    "101" when state_q=S_DATA_SYNC_2 else
-                    "110" when state_q=S_DATA_SYNC_3 else
-                    "111" when state_q=S_DATA_REC;
+    state_d_show <= "000" when state_d = S_IDLE else
+                    "001" when state_d = S_CMD_SYNC_1 else
+                    "010" when state_d = S_CMD_SYNC_2 else
+                    "011" when state_d = S_CMD_SYNC_3 else
+                    "100" when state_d = S_DATA_SYNC_1 else
+                    "101" when state_d = S_DATA_SYNC_2 else
+                    "110" when state_d = S_DATA_SYNC_3 else
+                    "111" when state_d = S_DATA_REC;
+ 
+    state_q_show <= "000" when state_q = S_IDLE else
+                    "001" when state_q = S_CMD_SYNC_1 else
+                    "010" when state_q = S_CMD_SYNC_2 else
+                    "011" when state_q = S_CMD_SYNC_3 else
+                    "100" when state_q = S_DATA_SYNC_1 else
+                    "101" when state_q = S_DATA_SYNC_2 else
+                    "110" when state_q = S_DATA_SYNC_3 else
+                    "111" when state_q = S_DATA_REC;
 
 
 end architecture;
