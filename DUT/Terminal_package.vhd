@@ -28,8 +28,9 @@ package Terminal_package is
         terminal_flag : std_logic;
     end record;
 
-    constant parita : std_logic := '1';
-    constant terminal_address : std_logic_vector(4 downto 0) := "11100";
+    constant PARITY : std_logic := '1';
+    constant TERMINAL_ADDRESS : std_logic_vector(4 downto 0) := "11100";
+    constant BUS_PERIOD : integer := 32;
 
 
 

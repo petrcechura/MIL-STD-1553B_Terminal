@@ -9,25 +9,25 @@ package verification_package is
     constant bus_width : integer := 17;
     
     -- MESSAGES
-    procedure RT_to_BC( variable data : in integer;
-                        variable address : in unsigned(4 downto 0);
-                        variable subaddress : in unsigned(4 downto 0));
-    procedure BC_to_RT( variable data_count : in integer;
-                        variable address : in unsigned(4 downto 0);
-                        variable subaddress : in unsigned(4 downto 0));
+    --procedure RT_to_BC( variable data : in integer;
+    --                    variable address : in unsigned(4 downto 0);
+    --                    variable subaddress : in unsigned(4 downto 0));
+    --procedure BC_to_RT( variable data_count : in integer;
+    --                    variable address : in unsigned(4 downto 0);
+    --                    variable subaddress : in unsigned(4 downto 0));
 
 
 
 
     -- enviroment procedures
-    procedure Send_command_word(signal address : in unsigned(4 downto 0);
-                                signal TR_bit : in std_logic;
-                                signal subaddress : in unsigned(4 downto 0);
-                                signal data_word_count : in unsigned(4 downto 0));
-    procedure Send_data_word(signal bits : in unsigned(16 downto 0));
-    procedure Send_invalid_word(variable data_length : in integer;
-                                variable parite : std_logic; -- '1' = odd, '0' = even
-                                variable sync_type : std_logic); -- '1' = com_word, '0' = data_word
+    --procedure Send_command_word(signal address : in unsigned(4 downto 0);
+    --                            signal TR_bit : in std_logic;
+    --                            signal subaddress : in unsigned(4 downto 0);
+    --                            signal data_word_count : in unsigned(4 downto 0));
+    --procedure Send_data_word(signal bits : in unsigned(16 downto 0));
+    --procedure Send_invalid_word(variable data_length : in integer;
+    --                            variable parite : std_logic; -- '1' = odd, '0' = even
+    --                            variable sync_type : std_logic); -- '1' = com_word, '0' = data_word
 
 
     -- BFM procedures
