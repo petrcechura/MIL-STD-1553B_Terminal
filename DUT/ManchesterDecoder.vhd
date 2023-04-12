@@ -84,6 +84,9 @@ architecture rtl of ManchesterDecoder is
     signal data_error : std_logic;
     signal parite_bit : std_logic;
 
+    --parity flip flop
+    signal parity_bit_d, parity_bit_q : std_logic;
+
 
     --JUST FOR SIMULATION
     signal state_d_show, state_q_show : unsigned(2 downto 0);
@@ -98,9 +101,21 @@ begin
     begin
         if reset='1' then
             state_q <= S_IDLE;
+            sync_type_q <= '0';
+            sync_timer_q <= (others => '0'); 
+            manchester_timer_q <= (others => '0'); 
+            data_counter_q <= (others => '0'); 
+            error_timer_pos_q <= (others => '0');
+            error_timer_neg_q <= (others => '0');
+            parity_bit_q <= '0';
         elsif rising_edge(clk) then
-            state_q <= state_d;
-            sync_type_q <= sync_type_d;
+            state_q <= state_d;              
+            sync_type_q <= sync_type_d;     -- info about synchronization type ('1' = command word, '0' = data word)
+            sync_timer_q <= sync_timer_d;
+            manchester_timer_q <= manchester_timer_d;
+            data_counter_q <= data_counter_d; 
+            error_timer_pos_q <= error_timer_pos_d;
+            error_timer_neg_q <= error_timer_neg_d;
         end if;
     end process;
 
@@ -220,25 +235,26 @@ begin
         for i in 15 downto 1 loop
             temp(i) := temp(i+1) xor decoded_data(i);
         end loop;
-        if PARITY = '1' then -- odd parite
+        if PARITY = '1' then   -- odd parite
             parite_bit <= temp(1);
-        else -- even parite
+        else                   -- even parite
             parite_bit <= not temp(1);
+        end if;
+    end process;
+
+    process (parity_bit_q)
+    begin
+        if manchester_timer_sample = '1' and in_positive = '1' then
+            parity_bit_d <= '1' xor parity_bit_q;
+        elsif manchester_timer_sample = '1' and in_negative = '1' then
+            parity_bit_d <= '0' xor parity_bit_q;
+        else
+            parity_bit_d <= parity_bit_q;
         end if;
     end process;
 
 
     -- SYNC TIMER SAMPLE
-    --seq part
-    process (clk)
-    begin
-        if reset='1' then
-            sync_timer_q <= (others => '0'); 
-        elsif rising_edge(clk) then
-            sync_timer_q <= sync_timer_d;
-        end if;
-    end process;
-
     -- comb part
     process (sync_timer_q, sync_timer_en)
     begin
@@ -267,16 +283,6 @@ begin
     --- *** MANCHESTER SAMPLE *** ---
 
     -- MANCHESTER TIMER SAMPLE
-    --seq part
-    process (clk)
-    begin
-        if reset='1' then
-            manchester_timer_q <= (others => '0'); 
-        elsif rising_edge(clk) then
-            manchester_timer_q <= manchester_timer_d;
-        end if;
-    end process;
-
     --comb part
     process (manchester_timer_q, manchester_timer_en)
     begin
@@ -328,16 +334,6 @@ begin
     end process;
 
     -- DATA COUNTER
-    --seq part
-    process (clk)
-    begin
-        if reset='1' then
-            data_counter_q <= (others => '0'); 
-        elsif rising_edge(clk) then
-            data_counter_q <= data_counter_d; 
-        end if;
-    end process;
-
     --comb part
     process (data_counter_q, data_counter_en, manchester_timer_max)
     begin
@@ -357,20 +353,6 @@ begin
     end process;
 
     -- ERROR TIMER
-    --seq part
-    process (clk)
-    begin
-        if rising_edge(clk) then
-            if reset='1' then
-                error_timer_pos_q <= (others => '0');
-                error_timer_neg_q <= (others => '0');
-            else
-                error_timer_pos_q <= error_timer_pos_d;
-                error_timer_neg_q <= error_timer_neg_d;
-            end if; 
-        end if;
-    end process;
-
     --comb part
     process (error_timer_en, error_timer_en, error_timer_pos_q, error_timer_neg_q, in_positive, in_negative)
     begin
