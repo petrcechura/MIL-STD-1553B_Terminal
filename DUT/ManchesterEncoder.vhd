@@ -23,41 +23,44 @@ end entity;
 
 architecture rtl of ManchesterEncoder is
 
-    -- State machine
-    type t_state is (S_IDLE,
-                     S_SYNC_POS,
-                     S_SYNC_NEG,
-                     S_ENCODE);
+    -- STATE MACHINE
+    type t_state is (S_IDLE,        -- encoder not in use
+                     S_SYNC_POS,    -- transmitting positive synchronize waveform part
+                     S_SYNC_NEG,    -- transmitting megative synchronize waveform part
+                     S_ENCODE);     -- transmitting data + parity (with manchester coding)
     signal state_d, state_q : t_state;
 
 
-    -- Frequency divider (32 to 1 MHz)
+    -- FREQUENCY DIVIDER (32 to 1 MHz)
     signal freq_divider_d, freq_divider_q : unsigned(4 downto 0);
     signal freq_divider_en : std_logic;
     signal bus_clock : std_logic;
     
-    -- Sync counter
+    -- TIMER
     signal timer_d, timer_q : unsigned(5 downto 0);
-    signal timer_sync, timer_max : std_logic;
+    signal timer_sync : std_logic; -- signalizes end of synchronize waveform (1.5*bus period)
+    signal timer_max : std_logic; -- signalizes one bus period
     signal timer_en : std_logic;
 
-    -- Data counter
+    -- DATA COUNTER
+    --counts amount of sent bits
     signal data_counter_d, data_counter_q : unsigned(4 downto 0);
-    signal data_counter_max : std_logic;
+    signal data_counter_max : std_logic; -- 17-bit (data + parity)
     signal data_counter_en : std_logic;
 
-    -- data essentials
+    -- SHIFT REGISTER
+    --stores input data to be sent; when transmitting, register is shifting and current bit to be sent is at position (15)
     signal data_register_d, data_register_q : std_logic_vector(15 downto 0); -- data + parite
 
-    -- Parity generator
+    -- PARITY GENERATOR
+    --parity is calculated sequently when transmitting (shifting register)
     signal parity_bit_d, parity_bit_q : std_logic;
     signal parity_bit_en : std_logic;
 
 
 begin
 
-    -- STATE MACHINE
-    --seq part
+    --SEQ PART
     process (clk)
     begin
         if reset = '1' then
@@ -77,6 +80,7 @@ begin
         end if;
     end process;
 
+    -- STATE MACHINE
     --comb part
     process (TX_en, state_q, data_counter_q, timer_sync, bus_clock)
     begin
@@ -92,9 +96,9 @@ begin
         case state_q is
             when S_IDLE =>  
 
-                if TX_en = "01" then
+                if TX_en = "01" then        -- command word to be sent
                     state_d <= S_SYNC_POS;
-                elsif TX_en = "10" then
+                elsif TX_en = "10" then     -- data word to be sent
                     state_d <= S_SYNC_NEG;
                 end if;
             when S_SYNC_POS =>
@@ -135,6 +139,7 @@ begin
             OUT_POSITIVE <= bus_clock xor data_register_q(15);
             OUT_NEGATIVE <= not (bus_clock xor data_register_q(15));
 
+            -- when data are sent, mark FSM_Brain that it's done & go to idle
             if data_counter_max = '1' then
                 state_d <= S_IDLE;
                 TX_DONE <= '1';
@@ -145,7 +150,7 @@ begin
     end process;
 
 
-    -- Sync counter
+    -- TIMER
     --comb part
     process (timer_en, timer_q)
     begin
@@ -155,6 +160,7 @@ begin
             timer_d <= (others => '0');
         end if;
 
+        -- synchronize waveform stands for 3 bus periods -> one half is 1.5*bus period
         if timer_q = 3 * BUS_PERIOD/2 - 1 then
             timer_sync <= '1';
             timer_d <= (others => '0'); 
@@ -162,6 +168,7 @@ begin
             timer_sync <= '0';
         end if;
 
+        -- when data are being sent (data_counter_en = '1'), signalize each end of bus period
         if timer_q = BUS_PERIOD - 1 and data_counter_en = '1' then
             timer_max <= '1';
             timer_d <= (others => '0'); 
@@ -172,10 +179,11 @@ begin
     end process;
 
 
-    -- Data counter 
+    -- DATA COUNTER
     --comb part
     process (data_counter_q, data_counter_en, timer_max)
     begin
+        -- each bus period (-> timer_max = '1') one bit is sent -> data_counter++
         if data_counter_en = '1' and timer_max = '1' then
             data_counter_d <= data_counter_q + 1;
         elsif data_counter_en = '1' then
@@ -184,6 +192,7 @@ begin
             data_counter_d <= (others => '0'); 
         end if;
 
+        -- data + parity
         if data_counter_q = 17 then
             data_counter_max <= '1';
         else
@@ -191,16 +200,18 @@ begin
         end if;
     end process;
 
-    -- Data register
+    -- DATA REGISTER
     --comb part
     process (data_wr, data_in, parity_bit_q, timer_max, data_counter_q, data_counter_en)
     begin
+        -- when data come to an encoder (signalized by data_wr), store them to data_register
         if data_wr = '1' then
             data_register_d(15 downto 0) <= data_in;
         else
             data_register_d <= data_register_q;
         end if;
 
+        -- when data transmitting, each bus period shift register; when sending last value (data_counter_q = 16), set parity bit to an output
         if data_counter_en = '1' and timer_max = '1' and data_counter_q = 16 then -- last bit to be sent is parity bit
             if PARITY = '1' then
                 data_register_d(15) <=  parity_bit_q;
@@ -214,9 +225,8 @@ begin
         end if;
     end process;
 
-    -- Frequency divider
+    -- FREQUENCY DIVIDER
     --comb part
-
     process (freq_divider_q, freq_divider_en)
     begin
         if freq_divider_en = '1' then
@@ -226,6 +236,7 @@ begin
         end if; 
     end process;
 
+    -- 1 MHz
     bus_clock <= freq_divider_q(4);
 
 end architecture;
