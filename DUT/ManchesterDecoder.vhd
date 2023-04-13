@@ -326,7 +326,7 @@ begin
     process (data_counter_q, data_counter_en, manchester_timer_max)
     begin
         if data_counter_en = '1' and manchester_timer_max = '1' then
-            data_counter_d <= data_counter_q+1;
+            data_counter_d <= data_counter_q + 1;
         elsif data_counter_en = '1' then
             data_counter_d <= data_counter_q;
         else

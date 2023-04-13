@@ -49,8 +49,9 @@ architecture rtl of ManchesterEncoder is
     -- data essentials
     signal data_register_d, data_register_q : std_logic_vector(15 downto 0); -- data + parite
 
-    -- Parity
+    -- Parity generator
     signal parity_bit_d, parity_bit_q : std_logic;
+    signal parity_bit_en : std_logic;
 
 
 begin
@@ -64,13 +65,15 @@ begin
             timer_q <= (others => '0'); 
             data_counter_q <= data_counter_d;
             data_register_q <= (others => '0'); 
-            freq_divider_q <= (others => '0'); 
+            freq_divider_q <= (others => '0');
+            parity_bit_q <= '0';
         elsif rising_edge(clk) then
             state_q <= state_d;
             timer_q <= timer_d;
             data_counter_q <= data_counter_d;
             data_register_q <= data_register_d;
             freq_divider_q <= freq_divider_d;
+            parity_bit_q <= parity_bit_d;
         end if;
     end process;
 
@@ -80,12 +83,14 @@ begin
         data_counter_en <= '0';
         timer_en <= '0';
         freq_divider_en <= '0';
+        parity_bit_en <= '0';
         OUT_POSITIVE <= '0';
         OUT_NEGATIVE <= '0';
+        TX_DONE <= '0';
         state_d <= state_q;
 
         case state_q is
-            when S_IDLE =>
+            when S_IDLE =>  
 
                 if TX_en = "01" then
                     state_d <= S_SYNC_POS;
@@ -124,17 +129,21 @@ begin
             data_counter_en <= '1';
             timer_en <= '1';
             freq_divider_en <= '1';
+            parity_bit_en <= '1';
 
+            --manchester coding
             OUT_POSITIVE <= bus_clock xor data_register_q(15);
             OUT_NEGATIVE <= not (bus_clock xor data_register_q(15));
 
             if data_counter_max = '1' then
                 state_d <= S_IDLE;
+                TX_DONE <= '1';
             else
                 state_d <= S_ENCODE;
             end if;
         end case;
     end process;
+
 
     -- Sync counter
     --comb part
@@ -193,9 +202,15 @@ begin
         end if;
 
         if data_counter_en = '1' and timer_max = '1' and data_counter_q = 16 then -- last bit to be sent is parity bit
-            data_register_d(15) <=  parity_bit_q;
+            if PARITY = '1' then
+                data_register_d(15) <=  parity_bit_q;
+            else
+                data_register_d(15) <=  not parity_bit_q;
+            end if;
         elsif data_counter_en = '1' and timer_max = '1' then -- shift register
             data_register_d <= data_register_d(14 downto 0) & '0';
+            parity_bit_d <= parity_bit_q xor data_register_d(15);
+        else
         end if;
     end process;
 

@@ -10,7 +10,7 @@ architecture rtl of testencoder is
 
     signal clk   : std_logic := '0';
     signal reset : std_logic := '0';
-    signal data_in :  std_logic_vector(15 downto 0) := "1110001010100101";
+    signal data_in :  std_logic_vector(15 downto 0) := "1111111111111111";
     signal data_wr : std_logic := '0';
     signal TX_en : std_logic_vector(1 downto 0) := "00";
     signal OUT_POSITIVE : std_logic := '0';
@@ -46,8 +46,7 @@ begin
         wait for 1 us;
         data_wr <= '0';
 
-        wait for 50 us;
-        wait;
+        wait until TX_DONE = '1';
 
     end process;
 
