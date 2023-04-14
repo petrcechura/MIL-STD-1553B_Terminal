@@ -10,7 +10,7 @@ end entity;
 
 architecture rtl of Enviroment is
 
-    signal com : t_bfm_com := (word => "01000101111001111",
+    signal com : t_bfm_com := (word => "11100010001000010",
                                start => '0',
                                test_done => '0');
 
@@ -23,23 +23,48 @@ architecture rtl of Enviroment is
     signal clk : std_logic := '0';
     signal rst : std_logic := '0';
 
+    -- routing signals between components
+    signal MEM_TO_TU : t_MEM_TO_TU;
+    signal TU_TO_BFM : t_TU_TO_BFM;
+
 begin
 
     BFM_I: entity work.BFM(rtl)
         port map (
             data_in => s_data_in,
-            pos_data_out => s_pos_data_out,
-            neg_data_out => s_neg_data_out,
+            pos_data_out => TU_TO_BFM.in_pos,
+            neg_data_out => TU_TO_BFM.in_neg,
             command => com
         );
 
-    MD_I: entity work.ManchesterDecoder(rtl)
+    TU_I: entity work.Terminal_unit(rtl)
         port map (
-            clk   => clk,
+            clk =>    clk,
+            reset =>  rst,
+            in_pos => TU_TO_BFM.in_pos,
+            in_neg =>  TU_TO_BFM.in_neg,
+            out_pos => TU_TO_BFM.out_pos,
+            out_neg =>  TU_TO_BFM.out_neg,
+            mem_wr_en => MEM_TO_TU.write_en ,
+            mem_rd_en =>  MEM_TO_TU.read_en,
+            mem_wr_done => MEM_TO_TU.wr_done,
+            mem_rd_done => MEM_TO_TU.rd_done,
+            data_in =>  MEM_TO_TU.data_in,
+            data_out =>  MEM_TO_TU.data_out,
+            mem_subaddr => MEM_TO_TU.subaddr
+        );
+
+    MEMORY_I : entity work.Memory(rtl)
+        port map (
+            clk => clk,
             reset => rst,
-            in_positive => s_pos_data_out,
-            in_negative => s_neg_data_out,
-            DATA_OUT => data
+            write_en => MEM_TO_TU.write_en,
+            read_en => MEM_TO_TU.read_en,
+            write_done => MEM_TO_TU.wr_done,
+            read_done => MEM_TO_TU.rd_done,
+            data_in => MEM_TO_TU.data_out,
+            data_out => MEM_TO_TU.data_in,
+            subaddress => MEM_TO_TU.subaddr
         );
     
     MAIN: process
@@ -59,7 +84,7 @@ begin
 
     CLK_P: process
     begin
-        for i in 0 to 100000 loop
+        for i in 0 to 10000 loop
             clk <= '1';
             wait for clk_period/2;
             clk <= '0';

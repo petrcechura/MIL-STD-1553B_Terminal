@@ -35,9 +35,6 @@ architecture rtl of Memory is
     signal wr_done_d, wr_done_q : std_logic;
     signal rd_done_d, rd_done_q : std_logic;
 
-    -- JUST FOR SIMULATION
-    signal show_four_blocks : std_logic_vector(16*4-1 downto 0);
-
 begin
 
     
@@ -57,7 +54,7 @@ begin
     end process;
 
 
-    process (write_en, read_en, reset, memory_arr_d, wr_done_d, wr_done_q, memory_arr_q, data_in)
+    process (write_en, read_en, reset, memory_arr_d, wr_done_d, wr_done_q, memory_arr_q, data_in, data_out_q)
     begin
         wr_done_d <= '0';
         rd_done_d <= '0';
@@ -78,8 +75,5 @@ begin
     data_out <= data_out_q;
     write_done <= wr_done_q;
     read_done <= rd_done_q;
-
-    -- JUST FOR SIMULATION
-    show_four_blocks <= memory_arr_q(to_integer(unsigned(subaddress)))(511 downto 511-63);
 
 end architecture;

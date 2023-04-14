@@ -7,6 +7,28 @@ package verification_package is
     
     constant bus_period : time := 1 us; -- 1 MHz frequency
     constant bus_width : integer := 17;
+
+    type t_MEM_TO_TU is record
+        -- unit -> memory
+        write_en : std_logic;
+        read_en : std_logic;
+        data_in : std_logic_vector(15 downto 0);
+        subaddr : std_logic_vector(4 downto 0);
+        -- memory -> unit
+        wr_done : std_logic;
+        rd_done : std_logic;
+        data_out : std_logic_vector(15 downto 0);
+    end record;
+
+    type t_TU_TO_BFM is record
+        in_pos : std_logic;
+        in_neg : std_logic;
+        out_pos : std_logic;
+        out_neg : std_logic;
+    end record;
+
+
+
     
     -- MESSAGES
     --procedure RT_to_BC( variable data : in integer;
@@ -20,14 +42,14 @@ package verification_package is
 
 
     -- enviroment procedures
-    --procedure Send_command_word(signal address : in unsigned(4 downto 0);
-    --                            signal TR_bit : in std_logic;
-    --                            signal subaddress : in unsigned(4 downto 0);
-    --                            signal data_word_count : in unsigned(4 downto 0));
-    --procedure Send_data_word(signal bits : in unsigned(16 downto 0));
-    --procedure Send_invalid_word(variable data_length : in integer;
-    --                            variable parite : std_logic; -- '1' = odd, '0' = even
-    --                            variable sync_type : std_logic); -- '1' = com_word, '0' = data_word
+    procedure Send_command_word(signal address : in unsigned(4 downto 0);
+                                signal TR_bit : in std_logic;
+                                signal subaddress : in unsigned(4 downto 0);
+                                signal data_word_count : in unsigned(4 downto 0));
+    procedure Send_data_word(signal bits : in unsigned(16 downto 0));
+    procedure Send_invalid_word(variable data_length : in integer;
+                                variable parite : std_logic; -- '1' = odd, '0' = even
+                                variable sync_type : std_logic); -- '1' = com_word, '0' = data_word
 
 
     -- BFM procedures
@@ -41,6 +63,7 @@ package verification_package is
         word : std_logic_vector(bus_width-1 downto 0);
         start : std_logic;
         test_done : std_logic;
+        command_number : integer;
     end record;
 
 
@@ -56,9 +79,33 @@ package body Verification_package is
     procedure Send_command_word(signal address : in unsigned(4 downto 0);
                                 signal TR_bit : in std_logic;
                                 signal subaddress : in unsigned(4 downto 0);
-                                signal data_word_count : in unsigned(4 downto 0)) is
+                                signal data_word_count : in unsigned(4 downto 0);
+                                signal to_bfm : out t_bfm_com) is
     begin
         
+
+
+
+
+
+
+    end procedure;
+
+
+    procedure Send_data_word (signal bits : in unsigned(16 downto 0)) is
+    begin
+        
+
+
+    end procedure;
+
+    procedure Send_invalid_word(variable data_length : in integer;
+                                variable parite : std_logic; 
+                                variable sync_type : std_logic) is
+    begin
+
+
+
     end procedure;
 
 
@@ -100,6 +147,7 @@ package body Verification_package is
             wait for 1.5*bus_period;
             sync_pos <= '1';
             sync_neg <= '0';
+            wait for 1.5*bus_period;
         end if;
     end procedure;
 end package body;

@@ -14,7 +14,7 @@ entity ManchesterEncoder is
         reset : in std_logic;
         data_in : in std_logic_vector(15 downto 0);     -- data to be sent
         data_wr : in std_logic;                         -- data to be sent are written to a register via this wr_en bit
-        TX_en : in std_logic_vector(1 downto 0);        -- 01 = command word, 10 = data word -> enables transfer; "00" -> stops transfer
+        TX_en : in std_logic_vector(1 downto 0);        -- 01 = status word, 10 = data word -> enables transfer; "00" -> stops transfer
         OUT_POSITIVE : out std_logic;  
         OUT_NEGATIVE : out std_logic;
         TX_DONE : out std_logic                         -- signalization to a terminal that transfer has been completed succesfully
@@ -82,7 +82,7 @@ begin
 
     -- STATE MACHINE
     --comb part
-    process (TX_en, state_q, data_counter_q, timer_sync, bus_clock)
+    process (TX_en, state_q, data_counter_q, timer_sync, bus_clock, parity_bit_q)
     begin
         data_counter_en <= '0';
         timer_en <= '0';
@@ -141,8 +141,8 @@ begin
 
             -- when data are sent, mark FSM_Brain that it's done & go to idle
             if data_counter_max = '1' then
-                state_d <= S_IDLE;
                 TX_DONE <= '1';
+                state_d <= S_IDLE;
             else
                 state_d <= S_ENCODE;
             end if;
@@ -204,6 +204,9 @@ begin
     --comb part
     process (data_wr, data_in, parity_bit_q, timer_max, data_counter_q, data_counter_en)
     begin
+        parity_bit_d <= parity_bit_q;
+
+        
         -- when data come to an encoder (signalized by data_wr), store them to data_register
         if data_wr = '1' then
             data_register_d(15 downto 0) <= data_in;
