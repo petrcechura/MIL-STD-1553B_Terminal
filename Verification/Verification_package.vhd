@@ -107,20 +107,20 @@ package body Verification_package is
                                 signal data_word_count : in unsigned(4 downto 0);
                                 signal to_bfm : out t_bfm_com;
                                 signal from_bfm : in std_logic) is
-        variable parity_bit : std_logic;
+        variable parity_bit : std_logic := '0';
         variable v_bits : unsigned(15 downto 0);
     begin
 
         to_bfm.command_number <= 1;
         v_bits := address & TR_bit & subaddress & data_word_count;
-
+        
         -- parity calculation
         parity_bit := v_bits(15);
         for i in 14 downto 0 loop
             parity_bit := parity_bit xor v_bits(i); 
         end loop;
         
-        to_bfm.bits <= std_logic_vector(v_bits(15 downto 0) & parity_bit);
+        to_bfm.bits <= std_logic_vector(v_bits & parity_bit);
         
         --START TEST
         report "SENDING COMMAND WORD (parity: '" & std_logic'image(parity_bit) & "')";
@@ -139,7 +139,7 @@ package body Verification_package is
     procedure Send_data_word (signal bits : in unsigned(15 downto 0);
                               signal to_bfm : out t_bfm_com;
                               signal from_bfm : in std_logic) is
-        variable parity_bit : std_logic;
+        variable parity_bit : std_logic := '0';
         variable v_bits : unsigned(15 downto 0);
     begin
         to_bfm.command_number <= 2;
@@ -151,7 +151,7 @@ package body Verification_package is
             parity_bit := parity_bit xor v_bits(i); 
         end loop;
         
-        to_bfm.bits <= std_logic_vector(v_bits(15 downto 0) & parity_bit);
+        to_bfm.bits <= std_logic_vector(v_bits & parity_bit);
         
         --START TEST
         report "SENDING DATA WORD (parity: '" & std_logic'image(parity_bit) & "')";

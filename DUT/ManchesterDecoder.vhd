@@ -208,17 +208,41 @@ begin
 
                 if data_counter_max = '1' and sync_type_q = '0' and decoded_data(0) = parity_bit_q then
                     RX_DONE <= "01"; --command word
-                    state_d <= S_IDLE;
+
+                    -- if the next message is right next to previous one, skip idle state
+                    if in_positive = '1' and in_negative = '0' then
+                        state_d <= S_CMD_SYNC_1;
+                    elsif in_negative = '1' and in_positive = '0' then
+                        state_d <= S_DATA_SYNC_1;
+                    else
+                        state_d <= S_IDLE;
+                    end if;
+
 
                 elsif data_counter_max = '1' and sync_type_q = '1' and decoded_data(0) = parity_bit_q then
                     RX_DONE <= "10"; --data word
-
-                    state_d <= S_IDLE;
+                    
+                    -- if the next message is right next to previous one, skip idle state
+                    if in_positive = '1' and in_negative = '0' then
+                        state_d <= S_CMD_SYNC_1;
+                    elsif in_negative = '1' and in_positive = '0' then
+                        state_d <= S_DATA_SYNC_1;
+                    else
+                        state_d <= S_IDLE;
+                    end if;
                 
                 elsif data_error = '1' or error_timer_max = '1' or (data_counter_max = '1' and decoded_data(0) /= parity_bit_q) then
-                    RX_DONE <= "11"; --error 
+                    RX_DONE <= "11"; --error
 
-                    state_d <= S_IDLE;
+                    -- if the next message is right next to previous one, skip idle state
+                    if in_positive = '1' and in_negative = '0' then
+                        state_d <= S_CMD_SYNC_1;
+                    elsif in_negative = '1' and in_positive = '0' then
+                        state_d <= S_DATA_SYNC_1;
+                    else
+                        state_d <= S_IDLE;
+                    end if;
+                        
                 else
                     state_d <= S_DATA_REC;
                 end if;
@@ -244,7 +268,7 @@ begin
 
     -- SYNC TIMER SAMPLE
     -- comb part
-    process (sync_timer_q, sync_timer_en)
+    process (sync_timer_q, sync_timer_en, sync_timer_mid_en)
     begin
         if sync_timer_en = '1' or sync_timer_mid_en = '1' then
             sync_timer_d <= sync_timer_q+1;
