@@ -9,7 +9,6 @@ library work;
 entity BFM is
     port (
         --terminal & BFM
-        data_in : in std_logic;
         pos_data_out : out std_logic;
         neg_data_out : out std_logic;
 

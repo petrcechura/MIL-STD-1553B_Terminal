@@ -62,7 +62,7 @@ architecture rtl of FSM_brain is
 
 
     -- INTERNAL ERROR TIMER 
-    --every state shouldn't last longer than for 10 us (except for S_IDLE); if that happens, there must be an error;
+    --some states shouldn't last longer than for 50 us; if that happens, there must be an error;
     signal error_timer_d, error_timer_q : unsigned(10 downto 0);
     signal error_timer_max : std_logic;
     signal error_timer_en : std_logic;
@@ -137,6 +137,11 @@ begin
                             -- TODO mode code broadcast handle !
                         
                         elsif decoder_data_in(10)='1' then --T/R bit
+                            
+
+
+
+
                             state_d <= S_MEM_READ;
                         else
                             state_d <= S_DATA_RX;
@@ -192,17 +197,17 @@ begin
                     --TODO save error flag
                     state_d <= S_IDLE;
 
-                elsif (counter_q /= 0 and mem_wr_done = '1') or counter_q = data_word_count_q then    -- send all data in internal cache (-> while counter != 0, keep sending)
+                elsif (counter_q /= 0 and mem_wr_done = '1') or counter_q = data_word_count_q then     -- send all data in internal cache (-> while counter != 0, keep sending)
                     mem_wr <= '1';  
-                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";   -- shift register (erase sent data)
+                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";        -- shift register (erase sent data)
 
-                    counter_d <= counter_q - 1;     -- every time write to memory was succesful, decrement counter 
+                    counter_d <= counter_q - 1;                                                        -- every time write to memory was succesful, decrement counter 
                     error_timer_en <= '0';
 
-                elsif mem_wr_done = '1' and counter_q = "00000"  and status_word_q(4) = '1' then    -- when recieving via broadcast, do not send status word
+                elsif mem_wr_done = '1' and counter_q = "00000"  and status_word_q(4) = '1' then       -- when recieving via broadcast, do not send status word
                     state_d <= S_IDLE;
 
-                elsif mem_wr_done = '1' and counter_q = "00000"  then                            -- memory write completed successfuly -> status word
+                elsif mem_wr_done = '1' and counter_q = "00000"  then                                  -- memory write completed successfuly -> status word
                     status_word_d(10) <= '0';    -- msg error = '0'
                     state_d <= S_MEM_WR_DONE;
                 end if;

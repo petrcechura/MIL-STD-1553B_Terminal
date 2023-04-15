@@ -85,6 +85,7 @@ architecture rtl of ManchesterDecoder is
 
     --parity flip flop
     signal parity_bit_d, parity_bit_q : std_logic;
+    signal parity_bit_en : std_logic;
 
 
     --JUST FOR SIMULATION
@@ -127,6 +128,7 @@ begin
         manchester_timer_en <= '0';
         data_counter_en <= '0';
         error_timer_en <= '0';
+        parity_bit_en <= '0';
         RX_DONE <= "00";
         state_d <= state_q;
 
@@ -205,6 +207,7 @@ begin
                 manchester_timer_en <= '1';
                 data_counter_en <= '1';
                 error_timer_en <= '1';
+                parity_bit_en <= '1';
 
                 if data_counter_max = '1' and sync_type_q = '0' and decoded_data(0) = parity_bit_q then
                     RX_DONE <= "01"; --command word
@@ -254,14 +257,18 @@ begin
 
     --PARITY CALCULATION
     -- comb part
-    process (parity_bit_q, manchester_timer_sample, in_positive, in_negative)
+    process (parity_bit_q, manchester_timer_sample, in_positive, in_negative, data_counter_max)
     begin
-        if manchester_timer_sample = '1' and in_positive = '1' then
-            parity_bit_d <= '1' xor parity_bit_q;
-        elsif manchester_timer_sample = '1' and in_negative = '1' then
-            parity_bit_d <= '0' xor parity_bit_q;
+        if parity_bit_en = '1' then
+            if manchester_timer_sample = '1' and in_positive = '1' and data_counter_q < 16 then
+                parity_bit_d <= ('1' xor parity_bit_q);
+            elsif manchester_timer_sample = '1' and in_negative = '1' and data_counter_q < 16 then
+                parity_bit_d <= ('0' xor parity_bit_q);
+            else
+                parity_bit_d <= parity_bit_q;
+            end if;
         else
-            parity_bit_d <= parity_bit_q;
+            parity_bit_d <= '0';
         end if;
     end process;
 
@@ -369,13 +376,13 @@ begin
     process (error_timer_en, error_timer_en, error_timer_pos_q, error_timer_neg_q, in_positive, in_negative)
     begin
         if error_timer_en = '1' and in_positive = '1' then
-            error_timer_pos_d <= error_timer_pos_q+1;
+            error_timer_pos_d <= error_timer_pos_q + 1;
         else
             error_timer_pos_d <= (others => '0');
         end if;
 
         if error_timer_en = '1' and in_negative = '1' then
-            error_timer_neg_d <= error_timer_neg_q+1;
+            error_timer_neg_d <= error_timer_neg_q + 1;
         else
             error_timer_neg_d <= (others => '0');
         end if;

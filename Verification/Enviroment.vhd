@@ -12,8 +12,6 @@ end entity;
 architecture rtl of Enviroment is
 
     --TODO                               
-    signal s_data_in, s_pos_data_out, s_neg_data_out : std_logic := '0';
-    signal data : std_logic_vector(15 downto 0);
     signal response : std_logic := '0';
 
     --clock
@@ -35,13 +33,12 @@ architecture rtl of Enviroment is
     signal data_word_count : unsigned(4 downto 0) := "00101";
 
     -- DATA WORD SETTINGS
-    signal bits : unsigned(15 downto 0) := "1110000010100101";
+    signal bits : unsigned(15 downto 0) := "1111100011111111";
 
 begin
 
     BFM_I: entity work.BFM(rtl)
         port map (
-            data_in => s_data_in,
             pos_data_out => TU_TO_BFM.in_pos,
             neg_data_out => TU_TO_BFM.in_neg,
             command => com,
@@ -105,8 +102,8 @@ begin
         rst <= '0';
         wait for 2 us;
         
-        --Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
-        for i in 0 to 5 loop
+        Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+        for i in 0 to 4 loop
             Send_data_word(bits, com, response);
         end loop;
         wait;

@@ -5,11 +5,8 @@ library ieee;
 
 package verification_package is
 
-
-
-
-    constant bus_period : time := 1 us; -- 1 MHz frequency
-    constant bus_width : integer := 17;
+    constant BUS_PERIOD : time := 1 us; -- 1 MHz frequency
+    constant BUS_WIDTH : integer := 17;
 
     type t_MEM_TO_TU is record
         -- unit -> memory
@@ -35,7 +32,6 @@ package verification_package is
     type t_bfm_com is record
         bits : std_logic_vector(bus_width-1 downto 0);
         start : std_logic;
-        test_done : std_logic;
         command_number : integer;
     end record;
     
@@ -113,7 +109,7 @@ package body Verification_package is
 
         to_bfm.command_number <= 1;
         v_bits := address & TR_bit & subaddress & data_word_count;
-        
+
         -- parity calculation
         parity_bit := v_bits(15);
         for i in 14 downto 0 loop
@@ -123,7 +119,7 @@ package body Verification_package is
         to_bfm.bits <= std_logic_vector(v_bits & parity_bit);
         
         --START TEST
-        report "SENDING COMMAND WORD (parity: '" & std_logic'image(parity_bit) & "')";
+        report "SENDING COMMAND WORD...";
 
         to_bfm.start <= '1';
         wait for 1 ns;
@@ -154,14 +150,13 @@ package body Verification_package is
         to_bfm.bits <= std_logic_vector(v_bits & parity_bit);
         
         --START TEST
-        report "SENDING DATA WORD (parity: '" & std_logic'image(parity_bit) & "')";
+        report "SENDING DATA WORD...";
         to_bfm.start <= '1';
         wait for 1 ns;
         to_bfm.start <= '0';
 
         wait until from_bfm <= '1';
-        report "DATA WORD SENT";
-
+        report "DATA WORD SENT...";
 
     end procedure;
 
@@ -175,6 +170,9 @@ package body Verification_package is
     end procedure;
 
 
+
+    --- ***BFM PROCEDURES*** ---
+    -- ********************** --
     procedure Make_manchester (  signal bits : in std_logic_vector(bus_width-1 downto 0);
                                  signal manchester_pos, manchester_neg : out std_logic) is
     begin
