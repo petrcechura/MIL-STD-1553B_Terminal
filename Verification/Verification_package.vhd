@@ -29,6 +29,12 @@ package verification_package is
         out_neg : std_logic;
     end record;
 
+    type t_DEC_TO_BFM is record
+        -- decoder -> BFM
+        data_from_TU : std_logic_vector(15 downto 0);
+        RX_done : std_logic_vector(1 downto 0);
+    end record;
+
     type t_bfm_com is record
         bits : std_logic_vector(bus_width-1 downto 0);
         start : std_logic;

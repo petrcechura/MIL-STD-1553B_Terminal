@@ -12,6 +12,10 @@ entity BFM is
         pos_data_out : out std_logic;
         neg_data_out : out std_logic;
 
+        -- decoder & BFM
+        data_from_TU : in std_logic_vector(15 downto 0);
+        RX_done : in std_logic_vector(1 downto 0);
+
         --enviroment & BFM
         command : in t_bfm_com;
         response : out std_logic
@@ -60,6 +64,9 @@ begin
         end loop;
         wait;
     end process;
+
+
+    
 
 
 end architecture;

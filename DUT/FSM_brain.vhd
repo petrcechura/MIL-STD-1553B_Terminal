@@ -136,17 +136,13 @@ begin
                             state_d <= S_MODE_CODE;
                             -- TODO mode code broadcast handle !
                         
-                        elsif decoder_data_in(10)='1' then --T/R bit
-                            
-
-
-
+                        elsif decoder_data_in(10) = '1' then --T/R bit
 
                             state_d <= S_MEM_READ;
                         else
                             state_d <= S_DATA_RX;
                         end if;
-                    elsif decoder_data_in(15 downto 11) = "00000" or decoder_data_in(15 downto 11) = "11111" then -- Broadcast
+                    elsif decoder_data_in(15 downto 11) = "00000" or decoder_data_in(15 downto 11) = "11111" then -- BROADCAST
                         status_word_d(4) <= '1';                                    -- broadcast flag is set
                         subaddress_d <= decoder_data_in(9 downto 5);                -- save subaddress    
                         data_word_count_d <= unsigned(decoder_data_in(4 downto 0)); -- save data word count/mode code
@@ -178,7 +174,7 @@ begin
 
                 elsif rx_done = "10" then
                     internal_cache_d <= decoder_data_in & internal_cache_q(511 downto 16);  -- save input data to an internal cache
-                    error_timer_en <= '0';  -- erase error_timer
+                    error_timer_en <= '0';          -- erase error_timer
                     counter_d <= counter_q + 1;     -- increment amount of data words received
 
                 elsif rx_done = "01" then
@@ -194,7 +190,7 @@ begin
                 
                 if error_timer_max = '1' then                       -- write took too long, there must be an error
                     -- ERROR WHILE SAVING DATA
-                    --TODO save error flag
+                    status_word_d(0) <= '1';
                     state_d <= S_IDLE;
 
                 elsif (counter_q /= 0 and mem_wr_done = '1') or counter_q = data_word_count_q then     -- send all data in internal cache (-> while counter != 0, keep sending)
@@ -226,18 +222,55 @@ begin
                 end if;
                 
             when S_MEM_READ =>
-                -- TODO
-                state_d <= S_IDLE;
+                error_timer_en <= '1';
+                
+                if error_timer_max = '1' then                       -- write took too long, there must be an error
+                    -- ERROR WHILE LOADING DATA
+                    status_word_d(0) <= '1';    -- set status word error flag to '1'
+                    state_d <= S_IDLE;
+
+                elsif (counter_q /= data_word_count_q and mem_rd_done = '1') or counter_q = 0 then     -- send all data in internal cache (-> while counter != 0, keep sending)
+                    mem_rd <= '1';  
+                    internal_cache_d <=mem_data_in & internal_cache_q(511 downto 16);        -- shift register (accept new data)
+
+                    counter_d <= counter_q + 1;                                                        -- every time write to memory was succesful, increment counter 
+                    error_timer_en <= '0';
+
+
+                elsif mem_rd_done = '1' and counter_q = data_word_count_q  then                        -- memory read completed successfuly -> status word
+                    status_word_d(10) <= '0';    -- msg error = '0'
+                    encoder_data_out <= std_logic_vector(status_word_q);
+                    data_wr_d <= '1';
+
+                    state_d <= S_MEM_RD_OK;
+                end if;
+    
+            when S_MEM_RD_OK =>     -- send status word
+                TX_enable <= "01";
+
+                if tx_done = '1' then -- when transmitting SW is done, send data from memory
+                    encoder_data_out <= internal_cache_q(511 downto 511-15);    -- sent data are from the front of internal cache
+                    data_wr_d <= '1';   -- write enable to encoder
+
+                    state_d <= S_DATA_TX;
+                end if;
+            
             when S_MEM_RD_ERR =>
-                -- TODO
-                state_d <= S_IDLE;
-            when S_MEM_RD_OK =>
-                -- TODO
-                state_d <= S_IDLE;
+            -- TODO
+            state_d <= S_IDLE;
 
             when S_DATA_TX =>
-                -- TODO
-                state_d <= S_IDLE;
+                TX_enable <= "10";
+
+                if (tx_done = '1' and counter_q /= 0) or counter_q = data_word_count_q then
+                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000"; -- shift register (erase sent data)
+                    encoder_data_out <= internal_cache_q(511 downto 511-15);    -- sent data are from the front of internal cache
+                    data_wr_d <= '1';
+                    counter_d <= counter_q - 1;
+                elsif tx_done = '1' and counter_q = 0 then  -- data has been transmitted succesfully -> go to idle
+                    state_d <= S_IDLE;
+                end if;
+
             when S_BROADCAST =>
                 -- TODO
                 state_d <= S_IDLE;

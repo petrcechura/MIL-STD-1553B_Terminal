@@ -11,9 +11,6 @@ end entity;
 
 architecture rtl of Enviroment is
 
-    --TODO                               
-    signal response : std_logic := '0';
-
     --clock
     constant clk_period : time := 31.25 ns; 
     signal clk : std_logic := '0';
@@ -22,9 +19,11 @@ architecture rtl of Enviroment is
     -- routing signals between components
     signal MEM_TO_TU : t_MEM_TO_TU;
     signal TU_TO_BFM : t_TU_TO_BFM;
+    signal DEC_TO_BFM : t_DEC_TO_BFM;
 
     -- Enviroment & BFM
     signal com : t_bfm_com;
+    signal response : std_logic := '0';
 
     -- COMMAND WORD SETTINGS
     signal address : unsigned(4 downto 0) := "11100";
@@ -33,7 +32,7 @@ architecture rtl of Enviroment is
     signal data_word_count : unsigned(4 downto 0) := "00101";
 
     -- DATA WORD SETTINGS
-    signal bits : unsigned(15 downto 0) := "1111100011111111";
+    signal bits : unsigned(15 downto 0) := "1010101011110000";
 
 begin
 
@@ -42,7 +41,9 @@ begin
             pos_data_out => TU_TO_BFM.in_pos,
             neg_data_out => TU_TO_BFM.in_neg,
             command => com,
-            response => response
+            response => response,
+            data_from_TU =>  DEC_TO_BFM.data_from_TU,
+            RX_done => DEC_TO_BFM.RX_done
         );
 
     TU_I: entity work.Terminal_unit(rtl)
@@ -74,6 +75,16 @@ begin
             data_out => MEM_TO_TU.data_in,
             subaddress => MEM_TO_TU.subaddr
         );
+
+    BFM_DECODER_I: entity work.ManchesterDecoder(rtl)
+    port map (
+        clk   => clk,
+        reset => rst,
+        in_positive => TU_TO_BFM.out_pos,
+        in_negative =>  TU_TO_BFM.out_neg,
+        DATA_OUT =>  DEC_TO_BFM.data_from_TU,
+        RX_DONE =>  DEC_TO_BFM.RX_done
+    );
     
 
 
@@ -106,9 +117,14 @@ begin
         for i in 0 to 4 loop
             Send_data_word(bits, com, response);
         end loop;
-        wait;
+        
+        TR_bit <= '1';
+        wait for 30 us;
 
         
+        Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+
+        wait;
 
 
 
