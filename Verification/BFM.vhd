@@ -14,7 +14,8 @@ entity BFM is
         neg_data_out : out std_logic;
 
         --enviroment & BFM
-        command : in t_bfm_com
+        command : in t_bfm_com;
+        response : out std_logic
     );
 end entity;
 
@@ -30,34 +31,33 @@ begin
     begin
         pos_data_out <= '0';
         neg_data_out <= '0';
-        while (command.test_done /= '1') loop
-
-            if command.command_number = 1 then
-                -- TEST NO. xx
-            elsif command.command_number = 2 then
-                -- TEST NO. xx
-            elsif command.command_number = 3 then
-                -- TEST NO. xx
-            elsif command.command_number = 4 then
-                -- TEST NO. xx
-            elsif command.command_number = 5 then
-                -- TEST NO. xx
-            elsif command.command_number = 6 then
-                -- TEST NO. xx
-            elsif command.command_number = 7 then
-                -- TEST NO. xx
-            elsif command.command_number = 8 then
-                -- TEST NO. xx
-
-
+        while (1=1) loop
             wait until command.start='1';
-            Make_sync(cmd_word, pos_data_out, neg_data_out);
-            Make_manchester(command.word, pos_data_out, neg_data_out);
+            response <= '0';
+
+            if command.command_number = 1 then                      -- COMMAND WORD
+                Make_sync(cmd_word, pos_data_out, neg_data_out);
+                Make_manchester(command.bits, pos_data_out, neg_data_out);
+
+            elsif command.command_number = 2 then                   -- DATA WORD
+                Make_sync(data_word, pos_data_out, neg_data_out);
+                Make_manchester(command.bits, pos_data_out, neg_data_out);
+
+            elsif command.command_number = 3 then                   -- WORD WITHOUT SYNCHRONIZE
+                
+
+            elsif command.command_number = 4 then                   -- INVALID WORD (too short)
+
+
+            else
+                report "Unrecognized command number!";
+                wait;
+            end if;
+
             pos_data_out <= '0';
             neg_data_out <= '0';
-            wait for 0.5 us;
-            Make_sync(data_word, pos_data_out, neg_data_out);
-            Make_manchester(command.word, pos_data_out, neg_data_out);
+            response <= '1';
+
         end loop;
         wait;
     end process;

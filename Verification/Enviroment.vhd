@@ -1,5 +1,6 @@
 library ieee;
     use ieee.std_logic_1164.all;
+    use ieee.numeric_std.all;
 
 library work;
     use work.Verification_package.all;
@@ -10,13 +11,10 @@ end entity;
 
 architecture rtl of Enviroment is
 
-    signal com : t_bfm_com := (word => "11100010001000010",
-                               start => '0',
-                               test_done => '0');
-
     --TODO                               
     signal s_data_in, s_pos_data_out, s_neg_data_out : std_logic := '0';
     signal data : std_logic_vector(15 downto 0);
+    signal response : std_logic := '0';
 
     --clock
     constant clk_period : time := 31.25 ns; 
@@ -27,6 +25,18 @@ architecture rtl of Enviroment is
     signal MEM_TO_TU : t_MEM_TO_TU;
     signal TU_TO_BFM : t_TU_TO_BFM;
 
+    -- Enviroment & BFM
+    signal com : t_bfm_com;
+
+    -- COMMAND WORD SETTINGS
+    signal address : unsigned(4 downto 0) := "11100";
+    signal TR_bit : std_logic := '0';
+    signal subaddress : unsigned(4 downto 0) := "10100";
+    signal data_word_count : unsigned(4 downto 0) := "00101";
+
+    -- DATA WORD SETTINGS
+    signal bits : unsigned(15 downto 0) := "1111000010100101";
+
 begin
 
     BFM_I: entity work.BFM(rtl)
@@ -34,7 +44,8 @@ begin
             data_in => s_data_in,
             pos_data_out => TU_TO_BFM.in_pos,
             neg_data_out => TU_TO_BFM.in_neg,
-            command => com
+            command => com,
+            response => response
         );
 
     TU_I: entity work.Terminal_unit(rtl)
@@ -67,24 +78,88 @@ begin
             subaddress => MEM_TO_TU.subaddr
         );
     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     MAIN: process
+
     begin
         rst <= '1';
         wait for 2 us;
         rst <= '0';
         wait for 2 us;
 
-        com.start <= '1';
-        wait for 1 us;
-        com.test_done <= '1';
-
+        Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+        for i in 0 to 4 loop
+            Send_data_word(bits, com, response);
+        end loop;
         wait;
+
+        
+
+
 
     end process;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     CLK_P: process
     begin
-        for i in 0 to 10000 loop
+        for i in 0 to 20000 loop
             clk <= '1';
             wait for clk_period/2;
             clk <= '0';

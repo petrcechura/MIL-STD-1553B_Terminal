@@ -4,7 +4,10 @@ library ieee;
 
 
 package verification_package is
-    
+
+
+
+
     constant bus_period : time := 1 us; -- 1 MHz frequency
     constant bus_width : integer := 17;
 
@@ -21,14 +24,20 @@ package verification_package is
     end record;
 
     type t_TU_TO_BFM is record
+        -- BFM -> unit
         in_pos : std_logic;
         in_neg : std_logic;
+        -- unit -> BFM
         out_pos : std_logic;
         out_neg : std_logic;
     end record;
 
-
-
+    type t_bfm_com is record
+        bits : std_logic_vector(bus_width-1 downto 0);
+        start : std_logic;
+        test_done : std_logic;
+        command_number : integer;
+    end record;
     
     -- MESSAGES
     --procedure RT_to_BC( variable data : in integer;
@@ -45,8 +54,14 @@ package verification_package is
     procedure Send_command_word(signal address : in unsigned(4 downto 0);
                                 signal TR_bit : in std_logic;
                                 signal subaddress : in unsigned(4 downto 0);
-                                signal data_word_count : in unsigned(4 downto 0));
-    procedure Send_data_word(signal bits : in unsigned(16 downto 0));
+                                signal data_word_count : in unsigned(4 downto 0);
+                                signal to_bfm : out t_bfm_com;
+                                signal from_bfm : in std_logic);
+
+    procedure Send_data_word(signal bits : in unsigned(15 downto 0);
+                             signal to_bfm : out t_bfm_com;
+                             signal from_bfm : in std_logic);
+
     procedure Send_invalid_word(variable data_length : in integer;
                                 variable parite : std_logic; -- '1' = odd, '0' = even
                                 variable sync_type : std_logic); -- '1' = com_word, '0' = data_word
@@ -58,13 +73,11 @@ package verification_package is
     procedure Make_manchester(  signal bits : in std_logic_vector(bus_width-1 downto 0);
                                 signal manchester_pos, manchester_neg : out std_logic);
 
-
-    type t_bfm_com is record
-        word : std_logic_vector(bus_width-1 downto 0);
-        start : std_logic;
-        test_done : std_logic;
-        command_number : integer;
-    end record;
+    -- COMMAND NUMBER
+        -- 1 = Command word (synchronize + word)
+        -- 2 = Data word (synchronize + word)
+        -- 3 = Word without synchronize
+        -- 4 = Invalid word (synchronize + short word)
 
 
 end package;
@@ -72,7 +85,19 @@ end package;
 package body Verification_package is
     
 
-
+    function unsigned_to_string(constant input : unsigned) return string is
+        variable output : string(0 to input'length);
+    begin
+        for i in input'range loop
+            if input(input'high-i) = '1' then
+                output(i) := '1';
+            else
+                output(i) := '0';
+            end if;
+        end loop;
+        return output;
+    end function;
+    
 
 
 
@@ -80,21 +105,62 @@ package body Verification_package is
                                 signal TR_bit : in std_logic;
                                 signal subaddress : in unsigned(4 downto 0);
                                 signal data_word_count : in unsigned(4 downto 0);
-                                signal to_bfm : out t_bfm_com) is
+                                signal to_bfm : out t_bfm_com;
+                                signal from_bfm : in std_logic) is
+        variable parity_bit : std_logic;
+        variable v_bits : unsigned(15 downto 0);
     begin
+
+        to_bfm.command_number <= 1;
+        v_bits := address & TR_bit & subaddress & data_word_count;
+
+        -- parity calculation
+        parity_bit := v_bits(15);
+        for i in 14 downto 0 loop
+            parity_bit := parity_bit xor v_bits(i); 
+        end loop;
         
+        to_bfm.bits <= std_logic_vector(v_bits(15 downto 0) & parity_bit);
+        
+        --START TEST
+        report "SENDING COMMAND WORD (parity: '" & std_logic'image(parity_bit) & "')";
 
+        to_bfm.start <= '1';
+        wait for 1 ns;
+        to_bfm.start <= '0';
 
-
-
-
+        wait until from_bfm <= '1';
+        
+        report "COMMAND WORD SENT.";
 
     end procedure;
 
 
-    procedure Send_data_word (signal bits : in unsigned(16 downto 0)) is
+    procedure Send_data_word (signal bits : in unsigned(15 downto 0);
+                              signal to_bfm : out t_bfm_com;
+                              signal from_bfm : in std_logic) is
+        variable parity_bit : std_logic;
+        variable v_bits : unsigned(15 downto 0);
     begin
+        to_bfm.command_number <= 2;
+        v_bits := bits;
+
+        -- parity calculation
+        parity_bit := v_bits(15);
+        for i in 14 downto 0 loop
+            parity_bit := parity_bit xor v_bits(i); 
+        end loop;
         
+        to_bfm.bits <= std_logic_vector(v_bits(15 downto 0) & parity_bit);
+        
+        --START TEST
+        report "SENDING DATA WORD (parity: '" & std_logic'image(parity_bit) & "')";
+        to_bfm.start <= '1';
+        wait for 1 ns;
+        to_bfm.start <= '0';
+
+        wait until from_bfm <= '1';
+        report "DATA WORD SENT";
 
 
     end procedure;
