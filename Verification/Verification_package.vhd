@@ -110,15 +110,13 @@ package body Verification_package is
         to_bfm.bits <= std_logic_vector(v_bits & parity_bit);
         
         --START TEST
-        report "SENDING COMMAND WORD...";
+        report "SENDING COMMAND WORD... (" & to_string(v_bits) & ")";
 
         to_bfm.start <= '1';
         wait for 1 ns;
         to_bfm.start <= '0';
 
         wait until from_bfm <= '1';
-        
-        report "COMMAND WORD SENT.";
 
     end procedure;
 
@@ -141,13 +139,12 @@ package body Verification_package is
         to_bfm.bits <= std_logic_vector(v_bits & parity_bit);
         
         --START TEST
-        report "SENDING DATA WORD...";
+        report "SENDING DATA WORD... (" & to_string(v_bits) & ")";
         to_bfm.start <= '1';
         wait for 1 ns;
         to_bfm.start <= '0';
 
         wait until from_bfm <= '1';
-        report "DATA WORD SENT...";
 
     end procedure;
 

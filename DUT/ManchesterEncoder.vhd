@@ -5,9 +5,6 @@ library ieee;
 library work;
     use work.Terminal_package.all;
 
-
-
-
 entity ManchesterEncoder is
     port (
         clk   : in std_logic;
@@ -143,8 +140,6 @@ begin
             if data_counter_max = '1' then
                 TX_DONE <= '1';
                 state_d <= S_IDLE;
-            else
-                state_d <= S_ENCODE;
             end if;
         end case;
     end process;
@@ -217,15 +212,19 @@ begin
         -- when data transmitting, each bus period shift register; when sending last value (data_counter_q = 16), set parity bit to an output
         if data_counter_en = '1' and timer_max = '1' and data_counter_q = 15 then -- last bit to be sent is parity bit
             if PARITY = '1' then
-                data_register_d(15) <=  parity_bit_q;
+                data_register_d(15) <=  parity_bit_q xor data_register_q(15);       -- xor last sent bit with (currently calculated) parity bit, then send it
             else
-                data_register_d(15) <=  not parity_bit_q;
+                data_register_d(15) <=  not (parity_bit_q xor data_register_q(15));
             end if;
+            
         elsif data_counter_en = '1' and timer_max = '1' then -- shift register
             data_register_d <= data_register_d(14 downto 0) & '0';
             parity_bit_d <= parity_bit_q xor data_register_d(15);
-        else
+
+        elsif data_counter_en = '0' then    -- erase parity bit for future transfers (when not transfering)
+            parity_bit_d <= '0';
         end if;
+
     end process;
 
     -- FREQUENCY DIVIDER
