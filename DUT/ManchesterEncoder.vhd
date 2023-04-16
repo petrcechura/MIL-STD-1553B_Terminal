@@ -215,7 +215,7 @@ begin
         end if;
 
         -- when data transmitting, each bus period shift register; when sending last value (data_counter_q = 16), set parity bit to an output
-        if data_counter_en = '1' and timer_max = '1' and data_counter_q = 16 then -- last bit to be sent is parity bit
+        if data_counter_en = '1' and timer_max = '1' and data_counter_q = 15 then -- last bit to be sent is parity bit
             if PARITY = '1' then
                 data_register_d(15) <=  parity_bit_q;
             else
@@ -240,6 +240,6 @@ begin
     end process;
 
     -- 1 MHz
-    bus_clock <= freq_divider_q(4);
+    bus_clock <= not freq_divider_q(4);
 
 end architecture;
