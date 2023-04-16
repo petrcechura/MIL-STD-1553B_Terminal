@@ -118,11 +118,16 @@ begin
             Send_data_word(bits, com, response);
         end loop;
         
-        TR_bit <= '1';
-        wait for 30 us;
+        Receive_word(com, response);
+
+
+
+
+        --TR_bit <= '1';
+        --wait for 30 us;
 
         
-        Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+        --Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
 
         wait;
 

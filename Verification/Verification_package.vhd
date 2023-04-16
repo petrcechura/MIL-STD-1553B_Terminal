@@ -8,6 +8,10 @@ package verification_package is
     constant BUS_PERIOD : time := 1 us; -- 1 MHz frequency
     constant BUS_WIDTH : integer := 17;
 
+
+    --************************************************--
+    -- ** CUSTOM DATA TYPES FOR ROUTING COMPONENTS ** --
+    --************************************************--
     type t_MEM_TO_TU is record
         -- unit -> memory
         write_en : std_logic;
@@ -36,23 +40,22 @@ package verification_package is
     end record;
 
     type t_bfm_com is record
+        -- environment -> BFM
         bits : std_logic_vector(bus_width-1 downto 0);
         start : std_logic;
-        command_number : integer;
+        command_number : integer; -- *(1)
     end record;
+
+    -- *(1) COMMAND NUMBER
+        -- 1 = Command word (synchronize + word)
+        -- 2 = Data word (synchronize + word)
+        -- 3 = Word without synchronize
+        -- 4 = Invalid word (synchronize + short word)
+        -- 7 = Receive word (print to console)
     
-    -- MESSAGES
-    --procedure RT_to_BC( variable data : in integer;
-    --                    variable address : in unsigned(4 downto 0);
-    --                    variable subaddress : in unsigned(4 downto 0));
-    --procedure BC_to_RT( variable data_count : in integer;
-    --                    variable address : in unsigned(4 downto 0);
-    --                    variable subaddress : in unsigned(4 downto 0));
-
-
-
-
-    -- enviroment procedures
+    --************************************************--
+    --   ** WORD TRANSMITTING/RECEIVING PROCEDURES  **--
+    --************************************************--
     procedure Send_command_word(signal address : in unsigned(4 downto 0);
                                 signal TR_bit : in std_logic;
                                 signal subaddress : in unsigned(4 downto 0);
@@ -65,43 +68,25 @@ package verification_package is
                              signal from_bfm : in std_logic);
 
     procedure Send_invalid_word(variable data_length : in integer;
-                                variable parite : std_logic; -- '1' = odd, '0' = even
+                                variable parite : std_logic;     -- '1' = odd, '0' = even
                                 variable sync_type : std_logic); -- '1' = com_word, '0' = data_word
 
+    procedure Receive_word (signal to_bfm : out t_bfm_com;
+                            signal from_bfm : in std_logic);
+        
 
-    -- BFM procedures
+
+    --************************************************--
+    --    ** PROCEDURES USED IN BFM TO MAKE WORD **   --
+    --************************************************--
     procedure Make_sync(signal sync_type : in std_logic; -- '1' = com_word, '0' = data_word
                         signal sync_pos, sync_neg : out std_logic);
     procedure Make_manchester(  signal bits : in std_logic_vector(bus_width-1 downto 0);
                                 signal manchester_pos, manchester_neg : out std_logic);
 
-    -- COMMAND NUMBER
-        -- 1 = Command word (synchronize + word)
-        -- 2 = Data word (synchronize + word)
-        -- 3 = Word without synchronize
-        -- 4 = Invalid word (synchronize + short word)
-
-
 end package;
 
 package body Verification_package is
-    
-
-    function unsigned_to_string(constant input : unsigned) return string is
-        variable output : string(0 to input'length);
-    begin
-        for i in input'range loop
-            if input(input'high-i) = '1' then
-                output(i) := '1';
-            else
-                output(i) := '0';
-            end if;
-        end loop;
-        return output;
-    end function;
-    
-
-
 
     procedure Send_command_word(signal address : in unsigned(4 downto 0);
                                 signal TR_bit : in std_logic;
@@ -171,8 +156,17 @@ package body Verification_package is
                                 variable sync_type : std_logic) is
     begin
 
+    end procedure;
 
+    procedure Receive_word (signal to_bfm : out t_bfm_com;
+                            signal from_bfm : in std_logic) is
+    begin
+        to_bfm.command_number <= 7;
+        to_bfm.start <= '1';
+        wait for 1 ns;
+        to_bfm.start <= '0';
 
+        wait until from_bfm = '1';
     end procedure;
 
 
@@ -184,18 +178,18 @@ package body Verification_package is
     begin
         for i in bits'length-1 downto 0 loop --MSB is sent first
             if bits(i) = '1' then
+                manchester_pos <= '1';
+                manchester_neg <= '0';
+                wait for bus_period/2;
                 manchester_neg <= '1';
                 manchester_pos <= '0';
-                wait for bus_period/2;
-                manchester_neg <= '0';
-                manchester_pos <= '1';
                 wait for bus_period/2;
             else
-                manchester_neg <= '0';
-                manchester_pos <= '1';
-                wait for bus_period/2;
                 manchester_neg <= '1';
                 manchester_pos <= '0';
+                wait for bus_period/2;
+                manchester_pos <= '1';
+                manchester_neg <= '0';
                 wait for bus_period/2;
             end if;
         end loop;

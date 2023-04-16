@@ -38,19 +38,29 @@ begin
             wait until command.start='1';
             response <= '0';
 
-            if command.command_number = 1 then                      -- COMMAND WORD
+            if command.command_number = 1 then                      -- TRANSMITT COMMAND WORD
                 Make_sync(cmd_word, pos_data_out, neg_data_out);
                 Make_manchester(command.bits, pos_data_out, neg_data_out);
 
-            elsif command.command_number = 2 then                   -- DATA WORD
+            elsif command.command_number = 2 then                   -- TRANSMITT DATA WORD
                 Make_sync(data_word, pos_data_out, neg_data_out);
                 Make_manchester(command.bits, pos_data_out, neg_data_out);
 
-            elsif command.command_number = 3 then                   -- WORD WITHOUT SYNCHRONIZE
+            elsif command.command_number = 3 then                   -- TRANSMITT WORD WITHOUT SYNCHRONIZE
                 
 
-            elsif command.command_number = 4 then                   -- INVALID WORD (too short)
+            elsif command.command_number = 4 then                   -- TRANSMITT INVALID WORD (too short)
 
+            elsif command.command_number = 7 then                   -- RECEIVE WORD FROM TERMINAL
+                wait until RX_done /= "00";
+                
+                if RX_done = "01" then
+                    report "BFM: Received Status word: " & to_string(data_from_TU);
+                elsif RX_done = "10" then
+                    report "BFM: Received Data word: ";
+                else
+                    report "BFM: Received !Error!";
+                end if;
 
             else
                 report "Unrecognized command number!";

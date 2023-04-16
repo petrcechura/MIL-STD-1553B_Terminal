@@ -11,7 +11,7 @@ library work;
     -- if the full synchronize waveform is detected, the state s_synchronize is on (-> sampling by manchester decoder)
 
 -- MANCHESTER DECODER
-    -- log. value is sampled in 3/4 period via /manchester_timer/
+    -- log. value is sampled in 1/4 period via /manchester_timer/
     -- amount of periods is counted by /data_counter/
         -- when the maximum (17) is detected, state goes to default (and data are valid)
     -- if an error occures (wrong parite, unrecognized coding), data are invalid and error is reported to terminal via RX_DONE output
@@ -311,7 +311,7 @@ begin
             manchester_timer_d <= (others => '0'); 
         end if;
 
-        if manchester_timer_q = (3 * BUS_PERIOD/4) then
+        if manchester_timer_q = (BUS_PERIOD/4) then
             manchester_timer_sample <= '1';
         else
             manchester_timer_sample <= '0';

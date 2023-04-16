@@ -136,8 +136,8 @@ begin
             parity_bit_en <= '1';
 
             --manchester coding
-            OUT_POSITIVE <= bus_clock xor data_register_q(15);
-            OUT_NEGATIVE <= not (bus_clock xor data_register_q(15));
+            OUT_POSITIVE <= not bus_clock xor data_register_q(15);
+            OUT_NEGATIVE <= (bus_clock xor data_register_q(15));
 
             -- when data are sent, mark FSM_Brain that it's done & go to idle
             if data_counter_max = '1' then
