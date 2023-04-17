@@ -11,7 +11,7 @@ end entity;
 
 architecture rtl of Enviroment is
 
-    --clock
+    -- clock
     constant clk_period : time := 31.25 ns; 
     signal clk : std_logic := '0';
     signal rst : std_logic := '0';
@@ -21,7 +21,7 @@ architecture rtl of Enviroment is
     signal TU_TO_BFM : t_TU_TO_BFM;
     signal DEC_TO_BFM : t_DEC_TO_BFM;
 
-    -- Enviroment & BFM
+    -- routing signals (Enviroment & BFM)
     signal com : t_bfm_com;
     signal response : std_logic := '0';
 

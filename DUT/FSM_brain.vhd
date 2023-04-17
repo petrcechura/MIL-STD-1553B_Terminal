@@ -53,6 +53,8 @@ architecture rtl of FSM_brain is
 
     -- MEMORY MANAGEMENT
     signal internal_cache_d, internal_cache_q : std_logic_vector(511 downto 0);
+    signal mem_wr_d, mem_wr_q : std_logic;
+    signal mem_rd_d, mem_rd_q : std_logic;
 
     -- STATE MACHINE CONTROLL
     signal data_wr_d, data_wr_q : std_logic;
@@ -84,6 +86,8 @@ begin
             internal_cache_q <= (others => '0'); 
             counter_q <= (others => '0') ;
             error_timer_q <= (others => '0'); 
+            mem_wr_q <= '0';
+            mem_rd_q <= '0';
 
             -- status word default set
             status_word_q(15 downto 11) <= TERMINAL_ADDRESS;    -- terminal address set     
@@ -103,6 +107,8 @@ begin
             internal_cache_q <= internal_cache_d;
             counter_q <= counter_d;
             error_timer_q <= error_timer_d;
+            mem_wr_q <= mem_wr_d;
+            mem_rd_q <= mem_rd_d;
 
         end if;
     end process;
@@ -131,6 +137,7 @@ begin
                         status_word_d(4) <= '0';                                    -- broadcast flag is set to zero
                         subaddress_d <= decoder_data_in(9 downto 5);                -- save subaddress 
                         data_word_count_d <= unsigned(decoder_data_in(4 downto 0)); -- save data word count/mode code
+
 
                         if decoder_data_in(9 downto 5) = "00000" or decoder_data_in(9 downto 5) = "11111" then -- Mode code 
                             state_d <= S_MODE_CODE;
@@ -172,7 +179,7 @@ begin
                 elsif counter_q = data_word_count_q then    -- expected amount of data words has been received, now save it
                     state_d <= S_MEM_WR;
 
-                elsif rx_done = "10" then
+                elsif rx_done = "10" then                   -- still receiving data
                     internal_cache_d <= decoder_data_in & internal_cache_q(511 downto 16);  -- save input data to an internal cache
                     error_timer_en <= '0';          -- erase error_timer
                     counter_d <= counter_q + 1;     -- increment amount of data words received
