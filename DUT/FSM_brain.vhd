@@ -53,8 +53,6 @@ architecture rtl of FSM_brain is
 
     -- MEMORY MANAGEMENT
     signal internal_cache_d, internal_cache_q : std_logic_vector(511 downto 0);
-    signal mem_wr_d, mem_wr_q : std_logic;
-    signal mem_rd_d, mem_rd_q : std_logic;
 
     -- STATE MACHINE CONTROLL
     signal data_wr_d, data_wr_q : std_logic;
@@ -86,8 +84,6 @@ begin
             internal_cache_q <= (others => '0'); 
             counter_q <= (others => '0') ;
             error_timer_q <= (others => '0'); 
-            mem_wr_q <= '0';
-            mem_rd_q <= '0';
 
             -- status word default set
             status_word_q(15 downto 11) <= TERMINAL_ADDRESS;    -- terminal address set     
@@ -107,14 +103,12 @@ begin
             internal_cache_q <= internal_cache_d;
             counter_q <= counter_d;
             error_timer_q <= error_timer_d;
-            mem_wr_q <= mem_wr_d;
-            mem_rd_q <= mem_rd_d;
 
         end if;
     end process;
 
     --comb part
-    process (decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, status_word_q, tx_done, error_timer_q, internal_cache_q, error_timer_en, subaddress_q)
+    process (decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, internal_cache_q, error_timer_en, subaddress_q)
     begin
         state_d <= state_q;
         subaddress_d <= subaddress_q;
@@ -124,9 +118,9 @@ begin
         counter_d <= counter_q;
 
         error_timer_en <= '0';
-        data_wr_d <= '0';
         mem_wr <= '0';
         mem_rd <= '0';
+        data_wr_d <= '0';
         TX_enable <= "00";
         
 
@@ -190,9 +184,10 @@ begin
 
 
 
-
+            
+            -- TODO error that writing is enabled in bad timing (it writes empty cache)
             when S_MEM_WR =>    -- terminal communicates with memory and tries to save recieved data
-
+                mem_wr <= '1';
                 error_timer_en <= '1';
                 
                 if error_timer_max = '1' then                       -- write took too long, there must be an error
@@ -201,16 +196,19 @@ begin
                     state_d <= S_IDLE;
 
                 elsif (counter_q /= 0 and mem_wr_done = '1') or counter_q = data_word_count_q then     -- send all data in internal cache (-> while counter != 0, keep sending)
-                    mem_wr <= '1';  
+                    mem_wr <= '0';  
                     internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";        -- shift register (erase sent data)
 
                     counter_d <= counter_q - 1;                                                        -- every time write to memory was succesful, decrement counter 
                     error_timer_en <= '0';
 
-                elsif mem_wr_done = '1' and counter_q = "00000"  and status_word_q(4) = '1' then       -- when recieving via broadcast, do not send status word
+                elsif mem_wr_done = '1' and counter_q = 0  and status_word_q(4) = '1' then       -- when recieving via broadcast, do not send status word
+                    mem_wr <= '0';
                     state_d <= S_IDLE;
 
-                elsif mem_wr_done = '1' and counter_q = "00000"  then                                  -- memory write completed successfuly -> status word
+
+                elsif mem_wr_done = '1' and counter_q = 0  then                                  -- memory write completed successfuly -> status word
+                    mem_wr <= '0';
                     status_word_d(10) <= '0';    -- msg error = '0'
                     state_d <= S_MEM_WR_DONE;
                 end if;
@@ -229,6 +227,7 @@ begin
                 end if;
                 
             when S_MEM_READ =>
+                mem_rd <= '1';
                 error_timer_en <= '1';
                 
                 if error_timer_max = '1' then                       -- write took too long, there must be an error
@@ -237,12 +236,11 @@ begin
                     state_d <= S_IDLE;
 
                 elsif (counter_q /= data_word_count_q and mem_rd_done = '1') or counter_q = 0 then     -- send all data in internal cache (-> while counter != 0, keep sending)
-                    mem_rd <= '1';  
-                    internal_cache_d <=mem_data_in & internal_cache_q(511 downto 16);        -- shift register (accept new data)
+                    mem_rd <= '0';  
+                    internal_cache_d <= mem_data_in & internal_cache_q(511 downto 16);        -- shift register (accept new data)
 
                     counter_d <= counter_q + 1;                                                        -- every time write to memory was succesful, increment counter 
                     error_timer_en <= '0';
-
 
                 elsif mem_rd_done = '1' and counter_q = data_word_count_q  then                        -- memory read completed successfuly -> status word
                     status_word_d(10) <= '0';    -- msg error = '0'

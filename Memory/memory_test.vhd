@@ -52,24 +52,15 @@ begin
         reset <= '0';
         wait for 1 us;
 
+        data_in <= "0000000000000001";
         -- write to subaddress = "11000" 4xblock 
         for i in 0 to 3 loop
-            data_in <= "1100110001010101";
+            report "data_in: " & to_string(data_in);
             subaddress <= "11000";
             write_en <= '1';
             wait until write_done = '1';
             write_en <= '0';
-            wait for 0.5 us;
-        end loop;
-
-        -- write to subaddress = "00000" 4xblock 
-        for i in 0 to 3 loop
-            data_in <= "1111111111111111";
-            subaddress <= "00000";
-            write_en <= '1';
-            wait until write_done = '1';
-            write_en <= '0';
-            wait for 0.5 us;
+            wait for 31.25 ns;
         end loop;
 
         -- read from subaddress = "11000" 4 blocks of memory
@@ -78,8 +69,8 @@ begin
             read_en <= '1';
             wait until read_done = '1';
             read_en <= '0';
-            wait for 0.5 us;
-            report "DATA FROM |11000| : " & integer'image(to_integer(unsigned(data_out)));
+            wait for 31.25 ns;
+            report "DATA FROM |11000| : " & to_string(data_out);
         end loop;
 
         wait for 10 us;
