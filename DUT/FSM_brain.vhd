@@ -37,9 +37,8 @@ architecture rtl of FSM_brain is
                     S_MEM_WR_DONE,
                     S_STAT_WRD_TX,
                     S_DATA_TX,
-                    S_MEM_RD_OK,
                     S_MEM_READ,
-                    S_MEM_RD_ERR,
+                    S_MEM_RD_DONE,
                     S_BROADCAST
                     );
     signal state_d, state_q : t_state;
@@ -139,8 +138,8 @@ begin
                         
                         elsif decoder_data_in(10) = '1' then --T/R bit
 
-                            state_d <= S_MEM_READ;
                             counter_d <= counter_q + 1;
+                            state_d <= S_MEM_READ;
                         else
                             state_d <= S_DATA_RX;
                         end if;
@@ -227,46 +226,45 @@ begin
                     state_d <= S_IDLE;
                 end if;
                 
-            -- TODO reading does not get all data from memory (one word is somehow lost)
-            when S_MEM_READ =>
+            when S_MEM_READ =>                                                              -- read from memory all data that is needed
                 mem_rd <= '1';
                 error_timer_en <= '1';
                 
-                if error_timer_max = '1' then                       -- write took too long, there must be an error
-                    -- ERROR WHILE LOADING DATA
-                    status_word_d(0) <= '1';    -- set status word error flag to '1'
-                    state_d <= S_IDLE;
+                if error_timer_max = '1' then                                               -- write took too long, there must be an error
+                    status_word_d(0) <= '1';                                                -- set status word error flag to '1'
+                    state_d <= S_MEM_RD_DONE;
+                
 
-                elsif (counter_q /= data_word_count_q and mem_rd_done = '1') then     -- send all data in internal cache (-> while counter != 0, keep sending)
-                    mem_rd <= '0';  
-                    internal_cache_d <= mem_data_in & internal_cache_q(511 downto 16);        -- shift register (accept new data)
-
-                    counter_d <= counter_q + 1;                                                        -- every time write to memory was succesful, increment counter 
-                    error_timer_en <= '0';
-
-                elsif mem_rd_done = '1' and counter_q = data_word_count_q  then                        -- memory read completed successfuly -> status word
+                elsif mem_rd_done = '1' and counter_q = data_word_count_q  then             -- memory read completed successfuly -> status word
                     mem_rd <= '0';
-                    internal_cache_d <= mem_data_in & internal_cache_q(511 downto 16);        -- shift register (accept new data)
+                    internal_cache_d <= mem_data_in & internal_cache_q(511 downto 16);      -- shift register (accept new data)
                     status_word_d(10) <= '0';    -- msg error = '0'
                     encoder_data_out <= std_logic_vector(status_word_q);
                     data_wr_d <= '1';
 
-                    state_d <= S_MEM_RD_OK;
+                    state_d <= S_MEM_RD_DONE;
+                    
+                elsif mem_rd_done = '1' then                                                -- send all data in internal cache (-> while counter != 0, keep sending)
+                    mem_rd <= '0';  
+                    internal_cache_d <= mem_data_in & internal_cache_q(511 downto 16);      -- shift register (accept new data)
+
+                    counter_d <= counter_q + 1;                                             -- every time write to memory was succesful, increment counter 
+                    error_timer_en <= '0';
                 end if;
+                
     
-            when S_MEM_RD_OK =>     -- send status word
+            when S_MEM_RD_DONE =>     -- send status word
                 TX_enable <= "01";
 
-                if tx_done = '1' then -- when transmitting SW is done, send data from memory
+                if tx_done = '1' and  status_word_d(0) = '1' then               -- TX of SW is done; if an error ocurred during memory read, go to idle
+                    state_d <= S_IDLE;
+
+                elsif tx_done = '1' then                                        -- TX of SW is done; now TX loaded data
                     encoder_data_out <= internal_cache_q(511 downto 511-15);    -- sent data are from the front of internal cache
-                    data_wr_d <= '1';   -- write enable to encoder
+                    data_wr_d <= '1';                                           -- write enable to encoder
 
                     state_d <= S_DATA_TX;
                 end if;
-            
-            when S_MEM_RD_ERR =>
-            -- TODO
-            state_d <= S_IDLE;
 
             when S_DATA_TX =>
                 TX_enable <= "10";
@@ -319,7 +317,7 @@ begin
 
     --SIMULATION
     state_d_show <= "0000" when state_d = S_IDLE else
-        "0001" when state_d = S_MEM_RD_OK else
+        "0001" when state_d = S_MEM_RD_DONE else
         "0010" when state_d = S_MODE_CODE  else
         "0011" when state_d = S_DATA_RX  else
         "0100" when state_d = S_MEM_WR  else
@@ -327,12 +325,11 @@ begin
         "0110" when state_d = S_STAT_WRD_TX  else
         "0111" when state_d = S_DATA_TX else
         "1000" when state_d = S_MEM_READ else
-        "1001" when state_d = S_MEM_RD_ERR else
         "1010" when state_d = S_BROADCAST;
 
 
     state_q_show <= "0000" when state_q = S_IDLE else
-        "0001" when state_q = S_MEM_RD_OK else
+        "0001" when state_q = S_MEM_RD_DONE else
         "0010" when state_q = S_MODE_CODE  else
         "0011" when state_q = S_DATA_RX  else
         "0100" when state_q = S_MEM_WR  else
@@ -340,7 +337,6 @@ begin
         "0110" when state_q = S_STAT_WRD_TX  else
         "0111" when state_q = S_DATA_TX else
         "1000" when state_q = S_MEM_READ else
-        "1001" when state_q = S_MEM_RD_ERR else
         "1010" when state_q = S_BROADCAST;
 
 end architecture;
