@@ -140,6 +140,7 @@ begin
                         elsif decoder_data_in(10) = '1' then --T/R bit
 
                             state_d <= S_MEM_READ;
+                            counter_d <= counter_q + 1;
                         else
                             state_d <= S_DATA_RX;
                         end if;
@@ -236,7 +237,7 @@ begin
                     status_word_d(0) <= '1';    -- set status word error flag to '1'
                     state_d <= S_IDLE;
 
-                elsif (counter_q /= data_word_count_q and mem_rd_done = '1') or counter_q = 0 then     -- send all data in internal cache (-> while counter != 0, keep sending)
+                elsif (counter_q /= data_word_count_q and mem_rd_done = '1') then     -- send all data in internal cache (-> while counter != 0, keep sending)
                     mem_rd <= '0';  
                     internal_cache_d <= mem_data_in & internal_cache_q(511 downto 16);        -- shift register (accept new data)
 
@@ -244,6 +245,8 @@ begin
                     error_timer_en <= '0';
 
                 elsif mem_rd_done = '1' and counter_q = data_word_count_q  then                        -- memory read completed successfuly -> status word
+                    mem_rd <= '0';
+                    internal_cache_d <= mem_data_in & internal_cache_q(511 downto 16);        -- shift register (accept new data)
                     status_word_d(10) <= '0';    -- msg error = '0'
                     encoder_data_out <= std_logic_vector(status_word_q);
                     data_wr_d <= '1';
@@ -267,14 +270,16 @@ begin
 
             when S_DATA_TX =>
                 TX_enable <= "10";
-
-                if (tx_done = '1' and counter_q /= 0) or counter_q = data_word_count_q then
+                
+                if tx_done = '1' and counter_q = 0 then  -- data has been transmitted succesfully -> go to idle
+                    state_d <= S_IDLE;
+                
+                elsif tx_done = '1' then    -- while there are data to be transmitted, transmit
                     internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000"; -- shift register (erase sent data)
-                    encoder_data_out <= internal_cache_q(511 downto 511-15);    -- sent data are from the front of internal cache
+                    encoder_data_out <= internal_cache_q(511 downto 511-15);                    -- sent data are from the front of internal cache
                     data_wr_d <= '1';
                     counter_d <= counter_q - 1;
-                elsif tx_done = '1' and counter_q = 0 then  -- data has been transmitted succesfully -> go to idle
-                    state_d <= S_IDLE;
+                
                 end if;
 
             when S_BROADCAST =>
