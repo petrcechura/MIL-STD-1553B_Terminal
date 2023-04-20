@@ -172,6 +172,7 @@ begin
                     state_d <= S_IDLE;
                 elsif counter_q = data_word_count_q then    -- expected amount of data words has been received, now save it
                     state_d <= S_MEM_WR;
+                    counter_d <= counter_q - 1;
 
                 elsif rx_done = "10" then                   -- still receiving data
                     internal_cache_d <= decoder_data_in & internal_cache_q(511 downto 16);  -- save input data to an internal cache
@@ -182,10 +183,6 @@ begin
                     -- error handle (unexpected – too low – amount of data words)
                 end if;
 
-
-
-            
-            -- TODO error that writing is enabled in bad timing (it writes empty cache)
             when S_MEM_WR =>    -- terminal communicates with memory and tries to save recieved data
                 mem_wr <= '1';
                 error_timer_en <= '1';
@@ -195,7 +192,7 @@ begin
                     status_word_d(0) <= '1';
                     state_d <= S_IDLE;
 
-                elsif (counter_q /= 0 and mem_wr_done = '1') or counter_q = data_word_count_q then     -- send all data in internal cache (-> while counter != 0, keep sending)
+                elsif (counter_q /= 0 and mem_wr_done = '1') then     -- send all data in internal cache (-> while counter != 0, keep sending)
                     mem_wr <= '0';  
                     internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";        -- shift register (erase sent data)
 
@@ -204,12 +201,15 @@ begin
 
                 elsif mem_wr_done = '1' and counter_q = 0  and status_word_q(4) = '1' then       -- when recieving via broadcast, do not send status word
                     mem_wr <= '0';
+                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";        -- shift register (erase sent data)
+                    
                     state_d <= S_IDLE;
-
 
                 elsif mem_wr_done = '1' and counter_q = 0  then                                  -- memory write completed successfuly -> status word
                     mem_wr <= '0';
+                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";        -- shift register (erase sent data)
                     status_word_d(10) <= '0';    -- msg error = '0'
+
                     state_d <= S_MEM_WR_DONE;
                 end if;
 
@@ -226,6 +226,7 @@ begin
                     state_d <= S_IDLE;
                 end if;
                 
+            -- TODO reading does not get all data from memory (one word is somehow lost)
             when S_MEM_READ =>
                 mem_rd <= '1';
                 error_timer_en <= '1';

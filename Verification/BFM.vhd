@@ -55,9 +55,9 @@ begin
                 wait until RX_done /= "00";
                 
                 if RX_done = "01" then
-                    report "BFM: Received Status word: " & to_string(data_from_TU);
+                    report "BFM: Received Status word: "; --& to_string(data_from_TU);
                 elsif RX_done = "10" then
-                    report "BFM: Received Data word: " & to_string(data_from_TU);
+                    report "BFM: Received Data word: "; --& to_string(data_from_TU);
                 else
                     report "BFM: Received !Error!";
                 end if;
