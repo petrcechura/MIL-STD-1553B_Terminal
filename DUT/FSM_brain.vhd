@@ -106,8 +106,9 @@ begin
         end if;
     end process;
 
+    --decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, internal_cache_q, error_timer_en, subaddress_q, data_word_count_q, state_d
     --comb part
-    process (decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, internal_cache_q, error_timer_en, subaddress_q)
+    process (all)
     begin
         state_d <= state_q;
         subaddress_d <= subaddress_q;
@@ -134,8 +135,6 @@ begin
 
                         if decoder_data_in(9 downto 5) = "00000" or decoder_data_in(9 downto 5) = "11111" then -- Mode code 
                             state_d <= S_MODE_CODE;
-                            encoder_data_out <= std_logic_vector(status_word_q);
-                            data_wr_d <= '1';
                             -- TODO mode code broadcast handle !
                         
                         elsif decoder_data_in(10) = '1' then --T/R bit
@@ -154,13 +153,11 @@ begin
                     end if;
 
 
-                elsif rx_done="10" then -- DATA WORD RECEIVED
+                elsif rx_done="10" then     -- DATA WORD RECEIVED
                     -- shouldnt happen by general
 
-                elsif rx_done="11" then -- ERROR WHILE COLLECTING WORD
-                    -- error handle
-                else
-                    state_d <= S_IDLE;
+                elsif rx_done="11" then     -- ERROR WHILE COLLECTING WORD
+                    status_word_d(10) <= '1';                                       -- message error flag -> '0'
                 end if;
 
                 
@@ -189,28 +186,28 @@ begin
                 mem_wr <= '1';
                 error_timer_en <= '1';
                 
-                if error_timer_max = '1' then                       -- write took too long, there must be an error
+                if error_timer_max = '1' or RX_done /= "00" then                                        -- either write took too long or unexpected word occured -> error
                     -- ERROR WHILE SAVING DATA
-                    status_word_d(0) <= '1';
+                    status_word_d(0) <= '1';                                                            -- terminal flag error -> '1'
                     state_d <= S_IDLE;
 
-                elsif (counter_q /= 0 and mem_wr_done = '1') then     -- send all data in internal cache (-> while counter != 0, keep sending)
+                elsif (counter_q /= 0 and mem_wr_done = '1') then                                       -- send all data in internal cache (-> while counter != 0, keep sending)
                     mem_wr <= '0';  
-                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";        -- shift register (erase sent data)
+                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";         -- shift register (erase sent data)
 
-                    counter_d <= counter_q - 1;                                                        -- every time write to memory was succesful, decrement counter 
+                    counter_d <= counter_q - 1;                                                         -- every time write to memory was succesful, decrement counter 
                     error_timer_en <= '0';
 
-                elsif mem_wr_done = '1' and counter_q = 0  and status_word_q(4) = '1' then       -- when recieving via broadcast, do not send status word
+                elsif mem_wr_done = '1' and counter_q = 0  and status_word_q(4) = '1' then              -- when recieving via broadcast, do not send status word
                     mem_wr <= '0';
-                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";        -- shift register (erase sent data)
+                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";         -- shift register (erase sent data)
                     
                     state_d <= S_IDLE;
 
-                elsif mem_wr_done = '1' and counter_q = 0  then                                  -- memory write completed successfuly -> status word
+                elsif mem_wr_done = '1' and counter_q = 0  then                                         -- memory write completed successfuly -> status word
                     mem_wr <= '0';
-                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";        -- shift register (erase sent data)
-                    status_word_d(10) <= '0';    -- msg error = '0'
+                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";         -- shift register (erase sent data)
+                    status_word_d(10) <= '0';                                                           -- msg error -> '0'
 
                     state_d <= S_MEM_WR_DONE;
                 end if;
@@ -221,10 +218,11 @@ begin
                 data_wr_d <= '1';
                 state_d <= S_STAT_WRD_TX;
                 
-            when S_STAT_WRD_TX =>                                       -- transmitting status word                                  
+            when S_STAT_WRD_TX =>                                       -- transmitting status word                                
                 TX_enable <= "01";
 
-                if tx_done = '1' then -- when transmitting is done, go to IDLE state
+                if tx_done = '1' then                                   -- when transmitting is done, go to IDLE state
+                    status_word_d(10 downto 0) <= (others => '0');      -- reset error flags (they have already been sent)
                     state_d <= S_IDLE;
                 end if;
                 
@@ -255,7 +253,7 @@ begin
                 end if;
                 
     
-            when S_MEM_RD_DONE =>     -- send status word
+            when S_MEM_RD_DONE =>                                               -- send status word
                 TX_enable <= "01";
 
                 if tx_done = '1' and  status_word_d(0) = '1' then               -- TX of SW is done; if an error ocurred during memory read, go to idle
@@ -295,12 +293,9 @@ begin
                     end if;
 
                 elsif data_word_count_q = "00010" then       -- MC transmit status word
-                    TX_enable <= "01";
-                    
-                    if tx_done = '1' then               -- when TX is done, go to idle
-                        state_d <= S_IDLE;
-                    end if;
-
+                    encoder_data_out <= std_logic_vector(status_word_q);
+                    data_wr_d <= '1';
+                    state_d <= S_STAT_WRD_TX;
                 end if;
         end case;
 
