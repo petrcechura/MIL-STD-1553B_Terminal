@@ -29,7 +29,7 @@ architecture rtl of Enviroment is
     signal address : unsigned(4 downto 0) := "11011";
     signal TR_bit : std_logic := '0';
     signal subaddress : unsigned(4 downto 0) := "10100";
-    signal data_word_count : unsigned(4 downto 0) := "01110";
+    signal data_word_count : unsigned(4 downto 0) := "00110";
 
     -- DATA WORD SETTINGS
     signal bits : unsigned(15 downto 0) := "0000000111100001";
@@ -131,6 +131,17 @@ begin
         for i in 0 to to_integer(data_word_count) loop
             Receive_word(com, response);
         end loop;
+
+        wait for 35 us;
+
+        -- send mode code (send status word)
+        report "COM";
+        TR_bit <= '0';
+        subaddress <= "00000";
+        data_word_count <= "00010";
+        wait for 1 ns;
+        Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+        Receive_word(com, response);
 
         wait;
 

@@ -125,7 +125,7 @@ begin
 
         case state_q is
             when S_IDLE =>
-                if rx_done="01" then -- COMMAND WORD RECEIVED
+                if rx_done="01" then                        -- COMMAND WORD RECEIVED
                     if decoder_data_in(15 downto 11) = std_logic_vector(terminal_address) then
                         status_word_d(4) <= '0';                                    -- broadcast flag is set to zero
                         subaddress_d <= decoder_data_in(9 downto 5);                -- save subaddress 
@@ -134,6 +134,8 @@ begin
 
                         if decoder_data_in(9 downto 5) = "00000" or decoder_data_in(9 downto 5) = "11111" then -- Mode code 
                             state_d <= S_MODE_CODE;
+                            encoder_data_out <= std_logic_vector(status_word_q);
+                            data_wr_d <= '1';
                             -- TODO mode code broadcast handle !
                         
                         elsif decoder_data_in(10) = '1' then --T/R bit
@@ -168,7 +170,7 @@ begin
                 error_timer_en <= '1';
 
                 if error_timer_max = '1' then
-                    -- error occued, set flag TODO
+                    status_word_d(4) <= '1';
                     state_d <= S_IDLE;
                 elsif counter_q = data_word_count_q then    -- expected amount of data words has been received, now save it
                     state_d <= S_MEM_WR;
@@ -284,8 +286,22 @@ begin
                 -- TODO
                 state_d <= S_IDLE;
             when S_MODE_CODE =>
-                -- TODO
-                state_d <= S_IDLE;
+
+                if data_word_count_q = "10001" then          -- MC synchronize (with data word)
+                    
+                    if RX_DONE = "10" then              -- data word received
+                        -- TODO set received word as output (sync info) 
+                        state_d <= S_IDLE;
+                    end if;
+
+                elsif data_word_count_q = "00010" then       -- MC transmit status word
+                    TX_enable <= "01";
+                    
+                    if tx_done = '1' then               -- when TX is done, go to idle
+                        state_d <= S_IDLE;
+                    end if;
+
+                end if;
         end case;
 
     end process;
@@ -294,7 +310,6 @@ begin
     -- output signals taken from flip flops
     encoder_data_wr <= data_wr_q;
     mem_subaddr <= subaddress_q;
-
     mem_data_out <= internal_cache_q(511 downto 511-15);  
 
     -- ERROR TIMER (9-bit)
