@@ -33,35 +33,17 @@ architecture rtl of Enviroment is
     signal data_word_count : unsigned(4 downto 0) := "00110";
 
     -- DATA WORD SETTINGS
-    signal bits : unsigned(15 downto 0) := "0000000111100001";
+    signal bits : unsigned(15 downto 0) := "0000000000000001";
 
 
-    --****************************************--
-    --*************TEST PROCEDURES************--
-    --****************************************--
-
-    procedure TEST_1 (signal a : std_logic) is
-    begin
-        -- terminal reset
-        rst <= '1';
-        wait for 2 us;
-        rst <= '0';
-        wait for 2 us;
-
-        -- send command word
-        address <= TERMINAL_ADDRESS;
-        TR_bit <= '0';
-        subaddress <= "11100";
-        data_word_count <= "00111";
-        Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
-
-        -- send data words
-
-
-    end procedure;
+    -- TEST CONTROLS
+    variable TEST_NUMBER : integer := 1;
 
 begin
 
+    --*********************************--
+    --******ENTITY INITIALIZATION******--
+    --*********************************--
     BFM_I: entity work.BFM(rtl)
         port map (
             pos_data_out => TU_TO_BFM.in_pos,
@@ -111,68 +93,102 @@ begin
         DATA_OUT =>  DEC_TO_BFM.data_from_TU,
         RX_DONE =>  DEC_TO_BFM.RX_done
     );
-    
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    --**********************--
+    --*****TEST PROCESS*****--
+    --**********************--
     MAIN: process
 
     begin
-        rst <= '1';
-        wait for 2 us;
-        rst <= '0';
-        wait for 2 us;
-        
-        -- send data
-        Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
-        for i in 0 to to_integer(data_word_count)-1 loop
-            bits <= bits + 1;
-            Send_data_word(bits, com, response);
-        end loop;
-        Receive_word(com, response);
-        
-        wait for 35 us;
+        if TEST_NUMBER = 1 then
+            report "TEST NO. 1";
+            -- terminal reset (1)
+            rst <= '1';
+            wait for 2 us;
+            rst <= '0';
+            wait for 2 us;
+            
+            -- send command word    (2)
+            address <= TERMINAL_ADDRESS;
+            TR_bit <= '0';
+            data_word_count <= "00111";
+            subaddress <= "11100";
+            wait for 1 ns;
+            Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
 
-        -- obtain (same) data
-        TR_bit <= '1';
-        data_word_count <= data_word_count;
-        wait for 1 ns;
-        Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
-        for i in 0 to to_integer(data_word_count) loop
+            -- send data words  (3)
+            bits <= "0000000000000001";
+            for i in 0 to to_integer(data_word_count)-1 loop
+                bits <= bits + 1;
+                Send_data_word(bits, com, response);
+            end loop;
+            
+            -- receive status word  (4)
             Receive_word(com, response);
-        end loop;
+            
+            wait for 35 us;
 
-        wait for 35 us;
+            -- send command word    (5)
+            address <= TERMINAL_ADDRESS;
+            TR_bit <= '0';
+            data_word_count <= "00100";
+            subaddress <= "00101";
+            wait for 1 ns;
+            Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
 
-        -- send mode code (send status word)
-        report "COM";
-        TR_bit <= '0';
-        subaddress <= "00000";
-        data_word_count <= "00010";
-        wait for 1 ns;
-        Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
-        Receive_word(com, response);
+            -- send data words  (6)
+            bits <= "0000000000000011";
+            for i in 0 to to_integer(data_word_count)-1 loop
+                bits <= bits + 1;
+                Send_data_word(bits, com, response);
+            end loop;
+            
+            -- receive status word  (7)
+            Receive_word(com, response);
 
+            wait for 35 us;
+
+            
+            -- send command word    (8)
+            address <= TERMINAL_ADDRESS;
+            TR_bit <= '1';
+            data_word_count <= "00011";
+            subaddress <= "11100";
+            wait for 1 ns;
+            Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);   
+            
+            -- receive status word  (9)
+            Receive_word(com, response);
+            -- receive data words (10)
+            for i in 0 to to_integer(data_word_count)-1 loop
+                Receive_word(com, response);
+            end loop;
+            
+            report "TEST NO. 1 DONE";
+
+        
+
+
+
+
+            
+        elsif TEST_NUMBER = 2 then
+            report "TEST NO. 2";
+            -- terminal reset (1)
+            rst <= '1';
+            wait for 2 us;
+            rst <= '0';
+            wait for 2 us;
+            
+            
+            
+        end if;
+        
+        
+        
+        
+        
         wait;
-
-
-
     end process;
 
 
@@ -217,7 +233,7 @@ begin
 
     CLK_P: process
     begin
-        for i in 0 to 30000 loop
+        for i in 0 to 40000 loop
             clk <= '1';
             wait for clk_period/2;
             clk <= '0';
