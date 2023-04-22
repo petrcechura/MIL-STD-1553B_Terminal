@@ -4,6 +4,7 @@ library ieee;
 
 library work;
     use work.Verification_package.all;
+    use work.terminal_package.all;
 
 entity Enviroment is
 end entity;
@@ -33,6 +34,31 @@ architecture rtl of Enviroment is
 
     -- DATA WORD SETTINGS
     signal bits : unsigned(15 downto 0) := "0000000111100001";
+
+
+    --****************************************--
+    --*************TEST PROCEDURES************--
+    --****************************************--
+
+    procedure TEST_1 (signal a : std_logic) is
+    begin
+        -- terminal reset
+        rst <= '1';
+        wait for 2 us;
+        rst <= '0';
+        wait for 2 us;
+
+        -- send command word
+        address <= TERMINAL_ADDRESS;
+        TR_bit <= '0';
+        subaddress <= "11100";
+        data_word_count <= "00111";
+        Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+
+        -- send data words
+
+
+    end procedure;
 
 begin
 

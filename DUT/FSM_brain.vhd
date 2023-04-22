@@ -187,7 +187,6 @@ begin
                 error_timer_en <= '1';
                 
                 if error_timer_max = '1' or RX_done /= "00" then                                        -- either write took too long or unexpected word occured -> error
-                    -- ERROR WHILE SAVING DATA
                     status_word_d(0) <= '1';                                                            -- terminal flag error -> '1'
                     state_d <= S_IDLE;
 
@@ -233,7 +232,6 @@ begin
                 if error_timer_max = '1' then                                               -- write took too long, there must be an error
                     status_word_d(0) <= '1';                                                -- set status word error flag to '1'
                     state_d <= S_MEM_RD_DONE;
-                
 
                 elsif mem_rd_done = '1' and counter_q = data_word_count_q  then             -- memory read completed successfuly -> status word
                     mem_rd <= '0';
@@ -242,8 +240,17 @@ begin
                     encoder_data_out <= std_logic_vector(status_word_q);
                     data_wr_d <= '1';
 
-                    state_d <= S_MEM_RD_DONE;
-                    
+                    if status_word_q(4) = '1' then                                          -- if it's broadcast mode, start sending data...
+                        state_d <= S_DATA_TX;
+                        encoder_data_out <= internal_cache_q(511 downto 511-15);    -- sent data are from the front of internal cache
+                        data_wr_d <= '1'; 
+                    else                                                                    -- ...otherwise send status word first 
+                        state_d <= S_MEM_RD_DONE;                                           
+                        internal_cache_d <= mem_data_in & internal_cache_q(511 downto 16);
+                        status_word_d(10) <= '0';    -- msg error = '0'
+                        encoder_data_out <= std_logic_vector(status_word_q);
+                        data_wr_d <= '1';
+                    end if;
                 elsif mem_rd_done = '1' then                                                -- send all data in internal cache (-> while counter != 0, keep sending)
                     mem_rd <= '0';  
                     internal_cache_d <= mem_data_in & internal_cache_q(511 downto 16);      -- shift register (accept new data)
@@ -251,7 +258,6 @@ begin
                     counter_d <= counter_q + 1;                                             -- every time write to memory was succesful, increment counter 
                     error_timer_en <= '0';
                 end if;
-                
     
             when S_MEM_RD_DONE =>                                               -- send status word
                 TX_enable <= "01";
@@ -281,13 +287,30 @@ begin
                 end if;
 
             when S_BROADCAST =>
-                -- TODO
-                state_d <= S_IDLE;
+                error_timer_en <= '1';
+
+                if error_timer_max = '1' then
+                    status_word_d(10) <= '1';
+                    state_d <= S_IDLE;
+
+                elsif RX_done = "01" and                                                        -- terminal should send data to all other terminals
+                    decoder_data_in(10) = '1' and 
+                    decoder_data_in(15 downto 11) = std_logic_vector(terminal_address)  then 
+                    
+                    state_d <= S_MEM_READ;
+
+                elsif RX_done = "10" then
+                    state_d <= S_DATA_RX;
+                end if;
             when S_MODE_CODE =>
 
                 if data_word_count_q = "10001" then          -- MC synchronize (with data word)
-                    
-                    if RX_DONE = "10" then              -- data word received
+                    error_timer_en <= '1';
+
+                    if error_timer_max = '1' then               -- no data word received
+                        status_word_d(10) <= '1';
+                        state_d <= S_IDLE;
+                    elsif RX_DONE = "10" then              -- data word received
                         -- TODO set received word as output (sync info) 
                         state_d <= S_IDLE;
                     end if;
@@ -296,6 +319,9 @@ begin
                     encoder_data_out <= std_logic_vector(status_word_q);
                     data_wr_d <= '1';
                     state_d <= S_STAT_WRD_TX;
+
+                else
+                    --TODO set mode code number as output
                 end if;
         end case;
 

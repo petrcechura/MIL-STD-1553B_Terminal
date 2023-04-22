@@ -29,10 +29,175 @@ ROZEPSANÉ POŽADAVKY NA TERMINÁL (Náměty na testy)
 
 
 -------------TESTY-------------
+DC = data word count = počet datových slov
+Addr* = adresa terminálu
+SA = subadresa (adresa subsystému)
+T/R = Transmit/Receive bit ('1' = transmit)
+
+*není-li uvedena -> ADRESA TERMINÁLU
 
 *TEST Č. 1*
-Účel:
 
-Popis testu:
+ÚČEL:
+Ověřit schopnost terminálu vyhodnotit požadavek na příjem a odeslání dat ze subsystému bez chyb.
+POPIS TESTU:
+1) Reset terminálu 
+2) Odeslání příkazového slova (T/R = '0', DC = 7, SA = "11100")
+3) Odeslání sedmi datových slov (s inkrementující hodnotou)
+4) Přijetí stavového slova
+5) Odeslání příkazového slova (T/R = '0', DC = 4, SA = "00101")
+6) Odeslání čtyř datových slov (s inkrementující hodnotou)
+7) Přijetí stavového slova
+8) Odeslání příkazového slova (T/R = '1', DC = 3, SA = "11100")
+9) Přijetí stavového slova
+10) Přijetí 3 datových slov
+
+
+*TEST Č. 2*
+
+ÚČEL:
+Ověřit schopnost terminálu adekvátně reagovat na chybu na lince (špatná parita, špatné kódování, bez synchronizace) při odesílání příkazového slova. Reakce je uložení chyby do SW, ale neodeslání SW.
+POPIS TESTU:
+1) Reset terminálu
+2) Odeslání příkazového slova (T/R = '0', DC = 3, SA = "00000", chybná parita)
+3) Odeslání tří datových slov
+4) Odeslání Mode code (Transmit status word) požadavku
+5) Přijetí stavového slova
+6)
+7) Odeslání příkazového slova (T/R = '0', DC = 4, SA = "00001", bez synchronizace)
+8) Odeslání čtyř datových slov
+9) Odeslání Mode code (Transmit status word) požadavku
+10) Přijetí stavového slova
+
+
+*TEST Č. 3*
+
+ÚČEL:
+Ověřit schopnost terminálu adekvátně reagovat na chybu na lince (špatná parita, špatné kódování, bez synchronizace) při odesílání datového slova. Reakce je po obdržení všech zpráv neuložení do paměti a odeslání stavového slova s informací o chybě.
+POPIS TESTU:
+1) Reset terminálu
+2) Odeslání příkazového slova (T/R = '0', DC = 5, SA = "00000")
+3) Odeslání pěti datových slov (chybná parita)
+4) Přijetí stavového slova
+5)
+6) Odeslání příkazového slova (T/R = '0', DC = 3, SA = "01100")
+7) Odeslání tří datových slov (bez synchronizace)
+8) Přijetí stavového slova
+9) Odeslání příkazového slova (T/R = '1', DC = 3, SA = "01100")
+10) Přijetí stavového slova
+11) přijetí tří datových slov
+
+*TEST Č. 4*
+
+ÚČEL:
+Ověřit schopnost terminálu reagovat na přijetí méně datových slov, než bylo očekáváno.
+POPIS TESTU:
+1) Reset terminálu
+2) Odeslání příkazového slova (T/R = '0', DC = 5, SA = "00000")
+3) Odeslání tří datových slov
+5)
+7) Odeslání příkazového slova (T/R = '0', DC = 3, SA = "01100")
+8) Odeslání tří datových slov (bez synchronizace)
+9) Přijetí stavového slova
+
+*TEST Č. 5*
+Ověřit schopnost terminálu reagovat na Mode Code požadavky (včetně vystavení Mode code slova na výstup).
+ÚČEL:
+
+POPIS TESTU:
+1) Reset terminálu
+2) Odeslání požadavku Mode Code (Transmit status word)
+3) Přijetí stavového slova
+4) 
+5) Odeslání požadavku Mode Code (synchronizace)
+6) Odeslání datového slova
+7) 
+8) Odeslání požadavku Mode Code (-)
+
+
+*TEST Č. 6*
+
+ÚČEL:
+Ověřit schopnost terminálu reagovat na broadcast požadavek k přijetí dat. Reakce je bez odeslání stavového slova.
+POPIS TESTU:
+1) Reset terminálu
+2) Odeslání příkazového slova (T/R = '0', DC = 4, Addr = "00000", SA = "10001")
+3) Odeslání čtyř datových slov.
+4) Odeslání příkazového slova (T/R = '1', DC = 4, SA = "10001")
+5) Přijetí čtyř datových slov.
+
+*TEST Č. 7*
+
+ÚČEL:
+Ověřit schopnost terminálu reagovat na broadcast požadavek k odeslání dat do ostatních terminálů.
+POPIS TESTU:
+1) Reset terminálu
+2) Odeslání příkazového slova (T/R = '0', DC = 4, Addr = "00000", SA = "10010")
+3) Odeslání příkazového slova (T/R = '1', DC = 4, SA = "10101")
+4) Přijetí čtyř datových slov
+
+*TEST Č. X*
+
+ÚČEL:
+
+POPIS TESTU:
+1) Reset terminálu
+2) 
+3) 
+4) 
+5) 
+6)
+7)
+8)
+9)
+10)
+
+*TEST Č. X*
+
+ÚČEL:
+
+POPIS TESTU:
+1) Reset terminálu
+2) 
+3) 
+4) 
+5) 
+6)
+7)
+8)
+9)
+10)
+
+*TEST Č. X*
+
+ÚČEL:
+
+POPIS TESTU:
+1) Reset terminálu
+2) 
+3) 
+4) 
+5) 
+6)
+7)
+8)
+9)
+10)
+
+*TEST Č. X*
+
+ÚČEL:
+
+POPIS TESTU:
+1) Reset terminálu
+2) 
+3) 
+4) 
+5) 
+6)
+7)
+8)
+9)
+10)
 
 
