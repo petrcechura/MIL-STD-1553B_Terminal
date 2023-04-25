@@ -35,10 +35,6 @@ architecture rtl of Enviroment is
     -- DATA WORD SETTINGS
     signal bits : unsigned(15 downto 0) := "0000000000000001";
 
-
-    -- TEST CONTROLS
-    variable TEST_NUMBER : integer := 1;
-
 begin
 
     --*********************************--
@@ -98,7 +94,7 @@ begin
     --*****TEST PROCESS*****--
     --**********************--
     MAIN: process
-
+        variable TEST_NUMBER : integer := 1;
     begin
         if TEST_NUMBER = 1 then
             report "TEST NO. 1";
@@ -180,7 +176,40 @@ begin
             rst <= '0';
             wait for 2 us;
             
+            -- send command word    (2)
+            address <= TERMINAL_ADDRESS;
+            TR_bit <= '0';
+            data_word_count <= "00111";
+            subaddress <= "11100";
+            wait for 1 ns;
+            Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+
+            -- send data words  (3)
+            bits <= "0000000000000001";
+            for i in 0 to to_integer(data_word_count)-1 loop
+                bits <= bits + 1;
+                Send_data_word(bits, com, response);
+            end loop;
             
+            -- receive status word  (4)
+            Receive_word(com, response);
+            
+            wait for 35 us;
+
+            -- send command word    (8)
+            address <= TERMINAL_ADDRESS;
+            TR_bit <= '1';
+            data_word_count <= "00111";
+            subaddress <= "11100";
+            wait for 1 ns;
+            Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);   
+            
+            -- receive status word  (9)
+            Receive_word(com, response);
+            -- receive data words (10)
+            for i in 0 to to_integer(data_word_count)-1 loop
+                Receive_word(com, response);
+            end loop;
             
         end if;
         

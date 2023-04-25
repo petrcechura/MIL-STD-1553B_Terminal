@@ -64,7 +64,26 @@ architecture rtl of Terminal_unit is
             mem_data_in : in std_logic_vector(15 downto 0);
             mem_rd_done : in std_logic;
             mem_wr_done : in std_logic;
-            mem_subaddr : out std_logic_vector(4 downto 0)
+            mem_subaddr : out std_logic_vector(4 downto 0);
+            sram_data_out : out std_logic_vector(15 downto 0);
+            sram_data_in : in std_logic_vector(15 downto 0);
+            sram_wr : out std_logic;
+            sram_rd : out std_logic
+        );
+    end component;
+
+    component SRAM is
+        port (
+            clk   : in std_logic;
+            reset : in std_logic;
+            wr_en : in std_logic;
+            wr_data : in std_logic_vector(16 - 1 downto 0);
+            rd_en : in std_logic;
+            rd_data : out std_logic_vector(16 - 1 downto 0);
+            empty : out std_logic;
+            full : out std_logic;
+            data_count : out std_logic_vector(4 downto 0)
+            
         );
     end component;
 
@@ -83,6 +102,14 @@ architecture rtl of Terminal_unit is
         TX_DONE : std_logic;
     end record;
     signal ME_TO_FSM : t_ME_TO_FSM;
+
+    type t_FSM_TO_SRAM is record
+        sram_data_out : std_logic_vector(15 downto 0);
+        sram_data_in : std_logic_vector(15 downto 0);
+        sram_wr : std_logic;
+        sram_rd : std_logic;
+    end record;
+    signal FSM_TO_SRAM : t_FSM_TO_SRAM;
 
 begin
 
@@ -112,19 +139,40 @@ begin
         port map (
             clk => clk,
             reset => reset,
+
             rx_done => MD_TO_FSM.RX_DONE,
-            tx_done => ME_TO_FSM.TX_DONE,
             decoder_data_in => MD_TO_FSM.DATA_OUT,
+            
+            tx_done => ME_TO_FSM.TX_DONE,
             encoder_data_out => ME_TO_FSM.data_in,
             encoder_data_wr => ME_TO_FSM.data_wr,
             TX_enable =>    ME_TO_FSM.TX_en,
+            
             mem_wr =>       mem_wr_en,
             mem_data_out => data_out,
             mem_rd =>       mem_rd_en,
             mem_data_in =>  data_in,
             mem_rd_done =>  mem_rd_done,
             mem_wr_done =>  mem_wr_done,
-            mem_subaddr => mem_subaddr
+            mem_subaddr => mem_subaddr,
+
+            sram_data_out => FSM_TO_SRAM.sram_data_out,
+            sram_data_in => FSM_TO_SRAM.sram_data_in,
+            sram_wr => FSM_TO_SRAM.sram_wr,
+            sram_rd => FSM_TO_SRAM.sram_rd
+        );
+
+    SRAM_I: SRAM
+        port map (
+            clk   => clk,
+            reset => reset,
+            wr_en => FSM_TO_SRAM.sram_wr,
+            wr_data => FSM_TO_SRAM.sram_data_out,
+            rd_en => FSM_TO_SRAM.sram_rd,
+            rd_data => FSM_TO_SRAM.sram_data_in,
+            empty => open,
+            full => open,
+            data_count => open
         );
 
 end architecture;

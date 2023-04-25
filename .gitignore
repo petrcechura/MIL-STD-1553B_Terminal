@@ -1,2 +1,5 @@
 # Ignore file that is created by Xillinx ISE
 Implementace/
+
+# Ignore test files that are used for single .vhd files and are not important for end user
+DUT/SRAM_test.vhd

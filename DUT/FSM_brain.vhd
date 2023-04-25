@@ -11,12 +11,24 @@ entity FSM_brain is
     port (
         clk   : in std_logic;
         reset : in std_logic;
+
+        -- FSM & decoder
         rx_done : in std_logic_vector(1 downto 0);
+        decoder_data_in : in std_logic_vector(15 downto 0);   
+
+        -- FSM & encoder
         tx_done : in std_logic;
-        decoder_data_in : in std_logic_vector(15 downto 0);
         encoder_data_out : out std_logic_vector(15 downto 0); 
         encoder_data_wr : out std_logic;
         TX_enable : out std_logic_vector(1 downto 0);
+
+        -- FSM & SRAM
+        sram_data_out : out std_logic_vector(15 downto 0);
+        sram_data_in : in std_logic_vector(15 downto 0);
+        sram_wr : out std_logic;
+        sram_rd : out std_logic;
+
+        -- FSM & memory
         mem_wr : out std_logic;
         mem_data_out : out std_logic_vector(15 downto 0);
         mem_rd : out std_logic;
@@ -50,9 +62,6 @@ architecture rtl of FSM_brain is
     -- STATUS WORD 
     signal status_word_d, status_word_q : unsigned(15 downto 0);
 
-    -- MEMORY MANAGEMENT
-    signal internal_cache_d, internal_cache_q : std_logic_vector(511 downto 0);
-
     -- STATE MACHINE CONTROLL
     signal data_wr_d, data_wr_q : std_logic;
 
@@ -80,7 +89,6 @@ begin
             subaddress_q <= (others => '0'); 
             data_word_count_q <= (others => '0'); 
             data_wr_q <= '0';
-            internal_cache_q <= (others => '0'); 
             counter_q <= (others => '0') ;
             error_timer_q <= (others => '0'); 
 
@@ -99,7 +107,6 @@ begin
             data_word_count_q <= data_word_count_d;
             status_word_q <= status_word_d;
             data_wr_q <= data_wr_d;
-            internal_cache_q <= internal_cache_d;
             counter_q <= counter_d;
             error_timer_q <= error_timer_d;
 
@@ -108,13 +115,12 @@ begin
 
     --decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, internal_cache_q, error_timer_en, subaddress_q, data_word_count_q, state_d
     --comb part
-    process (all)
+    process (decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, error_timer_en, subaddress_q, data_word_count_q, state_d)
     begin
         state_d <= state_q;
         subaddress_d <= subaddress_q;
         data_word_count_d <= data_word_count_q;
         status_word_d <= status_word_q;
-        internal_cache_d <= internal_cache_q;
         counter_d <= counter_q;
 
         error_timer_en <= '0';
@@ -122,6 +128,10 @@ begin
         mem_rd <= '0';
         data_wr_d <= '0';
         TX_enable <= "00";
+        sram_wr <= '0';
+        sram_rd <= '0';
+
+        sram_data_out <= decoder_data_in;
         
 
         case state_q is
@@ -166,7 +176,7 @@ begin
             when S_DATA_RX =>   -- terminal is receiving data from decoder
                 error_timer_en <= '1';
 
-                if error_timer_max = '1' then
+                if error_timer_max = '1' then                           -- error occured
                     status_word_d(4) <= '1';
                     state_d <= S_IDLE;
                 elsif counter_q = data_word_count_q then    -- expected amount of data words has been received, now save it
@@ -174,7 +184,7 @@ begin
                     counter_d <= counter_q - 1;
 
                 elsif rx_done = "10" then                   -- still receiving data
-                    internal_cache_d <= decoder_data_in & internal_cache_q(511 downto 16);  -- save input data to an internal cache
+                    sram_wr <= '1';                 -- write to an sram
                     error_timer_en <= '0';          -- erase error_timer
                     counter_d <= counter_q + 1;     -- increment amount of data words received
 
@@ -192,20 +202,18 @@ begin
 
                 elsif (counter_q /= 0 and mem_wr_done = '1') then                                       -- send all data in internal cache (-> while counter != 0, keep sending)
                     mem_wr <= '0';  
-                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";         -- shift register (erase sent data)
-
+                    sram_rd <= '1';
                     counter_d <= counter_q - 1;                                                         -- every time write to memory was succesful, decrement counter 
                     error_timer_en <= '0';
 
                 elsif mem_wr_done = '1' and counter_q = 0  and status_word_q(4) = '1' then              -- when recieving via broadcast, do not send status word
                     mem_wr <= '0';
-                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";         -- shift register (erase sent data)
-                    
+                    sram_rd <= '1';
                     state_d <= S_IDLE;
 
                 elsif mem_wr_done = '1' and counter_q = 0  then                                         -- memory write completed successfuly -> status word
                     mem_wr <= '0';
-                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000";         -- shift register (erase sent data)
+                    sram_rd <= '1';
                     status_word_d(10) <= '0';                                                           -- msg error -> '0'
 
                     state_d <= S_MEM_WR_DONE;
@@ -228,6 +236,7 @@ begin
             when S_MEM_READ =>                                                              -- read from memory all data that is needed
                 mem_rd <= '1';
                 error_timer_en <= '1';
+                sram_data_out <= mem_data_in;
                 
                 if error_timer_max = '1' then                                               -- write took too long, there must be an error
                     status_word_d(0) <= '1';                                                -- set status word error flag to '1'
@@ -235,25 +244,25 @@ begin
 
                 elsif mem_rd_done = '1' and counter_q = data_word_count_q  then             -- memory read completed successfuly -> status word
                     mem_rd <= '0';
-                    internal_cache_d <= mem_data_in & internal_cache_q(511 downto 16);      -- shift register (accept new data)
+                    sram_wr <= '1';
                     status_word_d(10) <= '0';    -- msg error = '0'
                     encoder_data_out <= std_logic_vector(status_word_q);
                     data_wr_d <= '1';
 
                     if status_word_q(4) = '1' then                                          -- if it's broadcast mode, start sending data...
                         state_d <= S_DATA_TX;
-                        encoder_data_out <= internal_cache_q(511 downto 511-15);    -- sent data are from the front of internal cache
+                        encoder_data_out <= sram_data_in;
                         data_wr_d <= '1'; 
                     else                                                                    -- ...otherwise send status word first 
-                        state_d <= S_MEM_RD_DONE;                                           
-                        internal_cache_d <= mem_data_in & internal_cache_q(511 downto 16);
+                        state_d <= S_MEM_RD_DONE;                                          
                         status_word_d(10) <= '0';    -- msg error = '0'
                         encoder_data_out <= std_logic_vector(status_word_q);
                         data_wr_d <= '1';
                     end if;
-                elsif mem_rd_done = '1' then                                                -- send all data in internal cache (-> while counter != 0, keep sending)
+
+                elsif mem_rd_done = '1' then                                                -- send all data to sram (-> while counter != 0, keep sending)
                     mem_rd <= '0';  
-                    internal_cache_d <= mem_data_in & internal_cache_q(511 downto 16);      -- shift register (accept new data)
+                    sram_wr <= '1';
 
                     counter_d <= counter_q + 1;                                             -- every time write to memory was succesful, increment counter 
                     error_timer_en <= '0';
@@ -266,7 +275,7 @@ begin
                     state_d <= S_IDLE;
 
                 elsif tx_done = '1' then                                        -- TX of SW is done; now TX loaded data
-                    encoder_data_out <= internal_cache_q(511 downto 511-15);    -- sent data are from the front of internal cache
+                    encoder_data_out <= sram_data_in;
                     data_wr_d <= '1';                                           -- write enable to encoder
 
                     state_d <= S_DATA_TX;
@@ -274,13 +283,13 @@ begin
 
             when S_DATA_TX =>
                 TX_enable <= "10";
+                encoder_data_out <= sram_data_in;
                 
                 if tx_done = '1' and counter_q = 0 then  -- data has been transmitted succesfully -> go to idle
                     state_d <= S_IDLE;
                 
                 elsif tx_done = '1' then    -- while there are data to be transmitted, transmit
-                    internal_cache_d <= internal_cache_q(511-16 downto 0) & "0000000000000000"; -- shift register (erase sent data)
-                    encoder_data_out <= internal_cache_q(511 downto 511-15);                    -- sent data are from the front of internal cache
+                    sram_rd <= '1';
                     data_wr_d <= '1';
                     counter_d <= counter_q - 1;
                 
@@ -331,7 +340,9 @@ begin
     -- output signals taken from flip flops
     encoder_data_wr <= data_wr_q;
     mem_subaddr <= subaddress_q;
-    mem_data_out <= internal_cache_q(511 downto 511-15);  
+
+    -- memory outputs
+    mem_data_out <= sram_data_in;
 
     -- ERROR TIMER (9-bit)
     --comb part
