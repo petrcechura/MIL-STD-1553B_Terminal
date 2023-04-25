@@ -41,7 +41,8 @@ package verification_package is
 
     type t_bfm_com is record
         -- environment -> BFM
-        bits : std_logic_vector(bus_width-1 downto 0);
+        bits : unsigned(bus_width-1 downto 0);
+        bits_length : integer;
         start : std_logic;
         command_number : integer; -- *(1)
     end record;
@@ -56,18 +57,19 @@ package verification_package is
     --************************************************--
     --   ** WORD TRANSMITTING/RECEIVING PROCEDURES  **--
     --************************************************--
-    procedure Send_command_word(signal address : in unsigned(4 downto 0);
-                                signal TR_bit : in std_logic;
-                                signal subaddress : in unsigned(4 downto 0);
-                                signal data_word_count : in unsigned(4 downto 0);
+    procedure Send_command_word(variable address : in unsigned(4 downto 0);
+                                variable TR_bit : in std_logic;
+                                variable subaddress : in unsigned(4 downto 0);
+                                variable data_word_count : in unsigned(4 downto 0);
                                 signal to_bfm : out t_bfm_com;
                                 signal from_bfm : in std_logic);
 
-    procedure Send_data_word(signal bits : in unsigned(15 downto 0);
+    procedure Send_data_word(variable bits : in unsigned(15 downto 0);
                              signal to_bfm : out t_bfm_com;
                              signal from_bfm : in std_logic);
 
-    procedure Send_invalid_word(variable data_length : in integer;
+    procedure Send_invalid_word(variable bits : in unsigned(15 downto 0);
+                                variable data_length : in integer;
                                 variable parite : std_logic;     -- '1' = odd, '0' = even
                                 variable sync_type : std_logic); -- '1' = com_word, '0' = data_word
 
@@ -81,17 +83,17 @@ package verification_package is
     --************************************************--
     procedure Make_sync(signal sync_type : in std_logic; -- '1' = com_word, '0' = data_word
                         signal sync_pos, sync_neg : out std_logic);
-    procedure Make_manchester(  signal bits : in std_logic_vector(bus_width-1 downto 0);
+    procedure Make_manchester(  variable data_bit : std_logic;
                                 signal manchester_pos, manchester_neg : out std_logic);
 
 end package;
 
 package body Verification_package is
 
-    procedure Send_command_word(signal address : in unsigned(4 downto 0);
-                                signal TR_bit : in std_logic;
-                                signal subaddress : in unsigned(4 downto 0);
-                                signal data_word_count : in unsigned(4 downto 0);
+    procedure Send_command_word(variable address : in unsigned(4 downto 0);
+                                variable TR_bit : in std_logic;
+                                variable subaddress : in unsigned(4 downto 0);
+                                variable data_word_count : in unsigned(4 downto 0);
                                 signal to_bfm : out t_bfm_com;
                                 signal from_bfm : in std_logic) is
         variable parity_bit : std_logic := '0';
@@ -107,8 +109,8 @@ package body Verification_package is
             parity_bit := parity_bit xor v_bits(i); 
         end loop;
         
-        to_bfm.bits <= std_logic_vector(v_bits & parity_bit);
-        
+        to_bfm.bits <= v_bits & parity_bit;
+        to_bfm.bits_length <= 17;
         --START TEST
         report "SENDING COMMAND WORD... (" & to_string(v_bits) & ")";
 
@@ -121,7 +123,7 @@ package body Verification_package is
     end procedure;
 
 
-    procedure Send_data_word (signal bits : in unsigned(15 downto 0);
+    procedure Send_data_word (variable bits : in unsigned(15 downto 0);
                               signal to_bfm : out t_bfm_com;
                               signal from_bfm : in std_logic) is
         variable parity_bit : std_logic := '0';
@@ -136,7 +138,8 @@ package body Verification_package is
             parity_bit := parity_bit xor v_bits(i); 
         end loop;
         
-        to_bfm.bits <= std_logic_vector(v_bits & parity_bit);
+        to_bfm.bits <= v_bits & parity_bit;
+        to_bfm.bits_length <= 17;
         
         --START TEST
         report "SENDING DATA WORD... (" & to_string(v_bits) & ")";
@@ -148,10 +151,12 @@ package body Verification_package is
 
     end procedure;
 
-    procedure Send_invalid_word(variable data_length : in integer;
+    procedure Send_invalid_word(variable bits : in unsigned(15 downto 0);
+                                variable data_length : in integer;
                                 variable parite : std_logic; 
                                 variable sync_type : std_logic) is
     begin
+
 
     end procedure;
 
@@ -170,26 +175,24 @@ package body Verification_package is
 
     --- ***BFM PROCEDURES*** ---
     -- ********************** --
-    procedure Make_manchester (  signal bits : in std_logic_vector(bus_width-1 downto 0);
+    procedure Make_manchester (  variable data_bit : std_logic;
                                  signal manchester_pos, manchester_neg : out std_logic) is
     begin
-        for i in bits'length-1 downto 0 loop --MSB is sent first
-            if bits(i) = '1' then
-                manchester_pos <= '1';
-                manchester_neg <= '0';
-                wait for bus_period/2;
-                manchester_neg <= '1';
-                manchester_pos <= '0';
-                wait for bus_period/2;
-            else
-                manchester_neg <= '1';
-                manchester_pos <= '0';
-                wait for bus_period/2;
-                manchester_pos <= '1';
-                manchester_neg <= '0';
-                wait for bus_period/2;
-            end if;
-        end loop;
+        if data_bit = '1' then
+            manchester_pos <= '1';
+            manchester_neg <= '0';
+            wait for bus_period/2;
+            manchester_neg <= '1';
+            manchester_pos <= '0';
+            wait for bus_period/2;
+        else
+            manchester_neg <= '1';
+            manchester_pos <= '0';
+            wait for bus_period/2;
+            manchester_pos <= '1';
+            manchester_neg <= '0';
+            wait for bus_period/2;
+        end if;
     end procedure;
 
     procedure Make_sync (signal sync_type : in std_logic;

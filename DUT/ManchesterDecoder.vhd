@@ -97,7 +97,7 @@ begin
 
     -- MAIN STATE MACHINE
     --seq part
-    process (clk)
+    process (clk, reset)
     begin
         if reset='1' then
             state_q <= S_IDLE;
@@ -121,7 +121,7 @@ begin
     end process;
 
     --comb part
-    process (state_q, in_positive, in_negative, sync_timer_max, sync_timer_mid, data_counter_max, sync_type_q, decoded_data, data_error, error_timer_max)
+    process (state_q, in_positive, in_negative, sync_timer_max, sync_timer_mid, data_counter_max, sync_type_q, decoded_data, data_error, error_timer_max, parity_bit_q)
     begin
         sync_timer_en <= '0';
         sync_timer_mid_en <= '0';
@@ -129,6 +129,7 @@ begin
         data_counter_en <= '0';
         error_timer_en <= '0';
         parity_bit_en <= '0';
+        sync_type_d <= sync_type_q;
         RX_DONE <= "00";
         state_d <= state_q;
 
@@ -257,7 +258,7 @@ begin
 
     --PARITY CALCULATION
     -- comb part
-    process (parity_bit_q, manchester_timer_sample, in_positive, in_negative, data_counter_max)
+    process (parity_bit_q, manchester_timer_sample, in_positive, in_negative, data_counter_max, parity_bit_en, data_counter_q)
     begin
         if parity_bit_en = '1' then
             if manchester_timer_sample = '1' and in_positive = '1' and data_counter_q < 16 then
@@ -325,7 +326,7 @@ begin
     end process;
 
     -- DATA REGISTER
-    process (clk)
+    process (clk, reset)
     begin
         if reset = '1' then
             decoded_data <= (others => '0');

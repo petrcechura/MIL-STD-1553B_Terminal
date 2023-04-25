@@ -22,8 +22,6 @@ entity BFM is
     );
 end entity;
 
-
-
 architecture rtl of BFM is
     signal cmd_word : std_logic := '1';
     signal data_word : std_logic := '0';
@@ -31,20 +29,27 @@ architecture rtl of BFM is
 begin
 
     MAIN: process
+        variable d_bit : std_logic;
     begin
         pos_data_out <= '0';
         neg_data_out <= '0';
-        while (1=1) loop
+        while (true) loop
             wait until command.start='1';
             response <= '0';
 
             if command.command_number = 1 then                      -- TRANSMITT COMMAND WORD
                 Make_sync(cmd_word, pos_data_out, neg_data_out);
-                Make_manchester(command.bits, pos_data_out, neg_data_out);
+                for i in command.bits_length - 1 downto 0 loop
+                    d_bit := command.bits(i);
+                    Make_manchester(d_bit, pos_data_out, neg_data_out);
+                end loop;
 
             elsif command.command_number = 2 then                   -- TRANSMITT DATA WORD
                 Make_sync(data_word, pos_data_out, neg_data_out);
-                Make_manchester(command.bits, pos_data_out, neg_data_out);
+                for i in command.bits_length - 1 downto 0 loop
+                    d_bit := command.bits(i);
+                    Make_manchester(d_bit, pos_data_out, neg_data_out);
+                end loop;
 
             elsif command.command_number = 3 then                   -- TRANSMITT WORD WITHOUT SYNCHRONIZE
                 
@@ -61,8 +66,6 @@ begin
                 else
                     report "BFM: Received !Error!";
                 end if;
-
-
                 
             else
                 report "Unrecognized command number!";

@@ -41,7 +41,7 @@ architecture rtl of SRAM is
 begin
 
     -- seq part
-    process (clk)
+    process (clk, reset)
     begin
         if reset = '1' then
             sram_q <= (others => (others => '0') ); 
@@ -56,7 +56,7 @@ begin
 
 
     -- data handle (write/read)
-    process (wr_en, rd_en, sram_q)
+    process (wr_en, rd_en, sram_q, head_q, tail_q, wr_data)
     begin
         head_d <= head_q;
         tail_d <= tail_q;

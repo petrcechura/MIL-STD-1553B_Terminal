@@ -82,7 +82,7 @@ begin
 
     -- FINITE STATE MACHINE
     --seq part
-    process (clk)
+    process (clk, reset)
     begin
         if reset = '1' then
             state_q <= S_IDLE; 
@@ -99,7 +99,7 @@ begin
             status_word_q(7 downto 5) <= (others => '0') ;      -- "reserved" bits
             status_word_q(4) <= '0';                            -- broadcast flag           (previous communication was done via broadcast option)
             status_word_q(3 downto 1) <= (others => '0');       -- unused bits               
-            status_word_q(0) <= '0';                            -- terminal error flag      (internal timer overflow)                
+            status_word_q(0) <= '0';                            -- terminal error flag      (error timer overflow)                
 
         elsif rising_edge(clk) then
             state_q <= state_d;
@@ -113,9 +113,9 @@ begin
         end if;
     end process;
 
-    --decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, internal_cache_q, error_timer_en, subaddress_q, data_word_count_q, state_d
+    --decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, error_timer_en, subaddress_q, data_word_count_q, state_d, state_q, sram_data_in, mem_data_in, status_word_d
     --comb part
-    process (decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, error_timer_en, subaddress_q, data_word_count_q, state_d)
+    process (decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, error_timer_en, subaddress_q, data_word_count_q, state_d, state_q, sram_data_in, mem_data_in, status_word_d)
     begin
         state_d <= state_q;
         subaddress_d <= subaddress_q;
@@ -132,11 +132,13 @@ begin
         sram_rd <= '0';
 
         sram_data_out <= decoder_data_in;
+        mem_data_out <= sram_data_in;
+        encoder_data_out <= sram_data_in;
         
 
         case state_q is
             when S_IDLE =>
-                if rx_done="01" then                        -- COMMAND WORD RECEIVED
+                if rx_done = "01" then                        -- COMMAND WORD RECEIVED
                     if decoder_data_in(15 downto 11) = std_logic_vector(terminal_address) then
                         status_word_d(4) <= '0';                                    -- broadcast flag is set to zero
                         subaddress_d <= decoder_data_in(9 downto 5);                -- save subaddress 
@@ -170,8 +172,7 @@ begin
                     status_word_d(10) <= '1';                                       -- message error flag -> '0'
                 end if;
 
-                
-
+            
 
             when S_DATA_RX =>   -- terminal is receiving data from decoder
                 error_timer_en <= '1';
@@ -179,7 +180,7 @@ begin
                 if error_timer_max = '1' then                           -- error occured
                     status_word_d(4) <= '1';
                     state_d <= S_IDLE;
-                elsif counter_q = data_word_count_q then    -- expected amount of data words has been received, now save it
+                elsif counter_q = data_word_count_q then                -- expected amount of data words has been received, now save it
                     state_d <= S_MEM_WR;
                     counter_d <= counter_q - 1;
 
@@ -227,7 +228,7 @@ begin
                 
             when S_STAT_WRD_TX =>                                       -- transmitting status word                                
                 TX_enable <= "01";
-
+                encoder_data_out <= std_logic_vector(status_word_q);
                 if tx_done = '1' then                                   -- when transmitting is done, go to IDLE state
                     status_word_d(10 downto 0) <= (others => '0');      -- reset error flags (they have already been sent)
                     state_d <= S_IDLE;
@@ -270,7 +271,8 @@ begin
     
             when S_MEM_RD_DONE =>                                               -- send status word
                 TX_enable <= "01";
-
+                encoder_data_out <= std_logic_vector(status_word_q);
+                
                 if tx_done = '1' and  status_word_d(0) = '1' then               -- TX of SW is done; if an error ocurred during memory read, go to idle
                     state_d <= S_IDLE;
 
@@ -340,9 +342,6 @@ begin
     -- output signals taken from flip flops
     encoder_data_wr <= data_wr_q;
     mem_subaddr <= subaddress_q;
-
-    -- memory outputs
-    mem_data_out <= sram_data_in;
 
     -- ERROR TIMER (9-bit)
     --comb part

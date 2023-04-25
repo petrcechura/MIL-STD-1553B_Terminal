@@ -27,7 +27,6 @@ architecture rtl of ManchesterEncoder is
                      S_ENCODE);     -- transmitting data + parity (with manchester coding)
     signal state_d, state_q : t_state;
 
-
     -- FREQUENCY DIVIDER (32 to 1 MHz)
     signal freq_divider_d, freq_divider_q : unsigned(4 downto 0);
     signal freq_divider_en : std_logic;
@@ -52,18 +51,17 @@ architecture rtl of ManchesterEncoder is
     -- PARITY GENERATOR
     --parity is calculated sequently when transmitting (shifting register)
     signal parity_bit_d, parity_bit_q : std_logic;
-    signal parity_bit_en : std_logic;
 
 
 begin
 
     --SEQ PART
-    process (clk)
+    process (clk, reset)
     begin
         if reset = '1' then
             state_q <= S_IDLE;
             timer_q <= (others => '0'); 
-            data_counter_q <= data_counter_d;
+            data_counter_q <= (others => '0') ;
             data_register_q <= (others => '0'); 
             freq_divider_q <= (others => '0');
             parity_bit_q <= '0';
@@ -79,12 +77,11 @@ begin
 
     -- STATE MACHINE
     --comb part
-    process (TX_en, state_q, data_counter_q, timer_sync, bus_clock, parity_bit_q)
+    process (TX_en, state_q, data_counter_q, timer_sync, bus_clock, parity_bit_q, data_register_q, data_counter_max)
     begin
         data_counter_en <= '0';
         timer_en <= '0';
         freq_divider_en <= '0';
-        parity_bit_en <= '0';
         OUT_POSITIVE <= '0';
         OUT_NEGATIVE <= '0';
         TX_DONE <= '0';
@@ -127,27 +124,26 @@ begin
                 end if;
 
             when S_ENCODE =>
-            data_counter_en <= '1';
-            timer_en <= '1';
-            freq_divider_en <= '1';
-            parity_bit_en <= '1';
+                data_counter_en <= '1';
+                timer_en <= '1';
+                freq_divider_en <= '1';
 
-            --manchester coding
-            OUT_POSITIVE <= not bus_clock xor data_register_q(15);
-            OUT_NEGATIVE <= (bus_clock xor data_register_q(15));
+                --manchester coding
+                OUT_POSITIVE <= not bus_clock xor data_register_q(15);
+                OUT_NEGATIVE <= (bus_clock xor data_register_q(15));
 
-            -- when data are sent, mark FSM_Brain that it's done & go to idle
-            if data_counter_max = '1' then
-                TX_DONE <= '1';
-                state_d <= S_IDLE;
-            end if;
+                -- when data are sent, mark FSM_Brain that it's done & go to idle
+                if data_counter_max = '1' then
+                    TX_DONE <= '1';
+                    state_d <= S_IDLE;
+                end if;
         end case;
     end process;
 
 
     -- TIMER
     --comb part
-    process (timer_en, timer_q)
+    process (timer_en, timer_q, data_counter_en)
     begin
         if timer_en = '1' then
             timer_d <= timer_q + 1;
@@ -197,7 +193,7 @@ begin
 
     -- DATA REGISTER
     --comb part
-    process (data_wr, data_in, parity_bit_q, timer_max, data_counter_q, data_counter_en)
+    process (data_wr, data_in, parity_bit_q, timer_max, data_counter_q, data_counter_en, data_register_q)
     begin
         parity_bit_d <= parity_bit_q;
 
@@ -218,8 +214,8 @@ begin
             end if;
             
         elsif data_counter_en = '1' and timer_max = '1' then -- shift register
-            data_register_d <= data_register_d(14 downto 0) & '0';
-            parity_bit_d <= parity_bit_q xor data_register_d(15);
+            data_register_d <= data_register_q(14 downto 0) & '0';
+            parity_bit_d <= parity_bit_q xor data_register_q(15);
 
         elsif data_counter_en = '0' then    -- erase parity bit for future transfers (when not transfering)
             parity_bit_d <= '0';
