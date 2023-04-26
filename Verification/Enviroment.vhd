@@ -92,7 +92,7 @@ begin
 
 
     MAIN: process
-        variable TEST_NUMBER : integer := 4;
+        variable TEST_NUMBER : integer := 6;
 
         -- COMMAND WORD SETTINGS
         variable address : unsigned(4 downto 0) := "11011";
@@ -157,7 +157,7 @@ begin
             -- send command word    (8)
             address := TERMINAL_ADDRESS;
             TR_bit := '1';
-            data_word_count := "00011";
+            data_word_count := "00111";
             subaddress := "11100";
             wait for 1 ns;
             Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);   
@@ -338,16 +338,51 @@ begin
             -- receive status word  (6)
             Receive_word(com, response);            
 
+            elsif TEST_NUMBER = 5 then
 
 
+            elsif TEST_NUMBER = 6 then
+                report "TEST NO. 6";
+                -- terminal reset (1)
+                rst <= '1';
+                wait for 2 us;
+                rst <= '0';
+                wait for 2 us;
+                
+                -- send command word    (2)
+                address := "00000";
+                TR_bit := '0';
+                data_word_count := "00100";
+                subaddress := "10001";
+                wait for 1 ns;
+                Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+    
+                -- send data words  (3)
+                bits := "0000000000000001";
+                for i in 0 to to_integer(data_word_count)-1 loop
+                    bits := bits + 1;
+                    Send_data_word(bits, com, response);
+                end loop;
 
+                wait for 10 us;
 
+                -- send command word    (4)
+                address := TERMINAL_ADDRESS;
+                TR_bit := '1';
+                data_word_count := "00100";
+                subaddress := "10001";
+                wait for 1 ns;
+                Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);   
+                    
+                -- receive status word  (5)
+                Receive_word(com, response);
 
+                -- receive data words (6)
+                for i in 0 to to_integer(data_word_count)-1 loop
+                    Receive_word(com, response);
+                end loop;                
 
         end if;
-        
-        
-        
         
         
         wait;

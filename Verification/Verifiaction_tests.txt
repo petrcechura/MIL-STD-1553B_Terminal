@@ -120,7 +120,8 @@ POPIS TESTU:
 2) Odeslání příkazového slova (T/R = '0', DC = 4, Addr = "00000", SA = "10001")
 3) Odeslání čtyř datových slov.
 4) Odeslání příkazového slova (T/R = '1', DC = 4, SA = "10001")
-5) Přijetí čtyř datových slov.
+5) Přijetí stavového slova.
+6) Přijetí čtyř datových slov.
 
 *TEST Č. 7*
 

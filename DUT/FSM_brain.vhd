@@ -119,9 +119,9 @@ begin
         end if;
     end process;
 
-    --decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, error_timer_en, subaddress_q, data_word_count_q, state_d, state_q, sram_data_in, mem_data_in, status_word_d
+    --decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, error_timer_en, subaddress_q, data_word_count_q, state_d, state_q, sram_data_in, mem_data_in, status_word_d, msg_err_q, rx_flag
     --comb part
-    process (decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, error_timer_en, subaddress_q, data_word_count_q, state_d, state_q, sram_data_in, mem_data_in, status_word_d, msg_err_q, rx_flag)
+    process (all)
     begin
         state_d <= state_q;
         subaddress_d <= subaddress_q;
@@ -209,12 +209,12 @@ begin
                     counter_d <= counter_q + 1;     -- increment amount of data words received  
                     msg_err_d <= '1';    
                     
-                elsif rx_flag = '0' then    -- data rec ended too soon -> error
+                elsif rx_flag = '0' then            -- data rec ended too soon -> error
                     status_word_d(10) <= '1';
                     state_d <= S_IDLE;
                 end if;
 
-            when S_MEM_WR =>    -- terminal communicates with memory and tries to save recieved data
+            when S_MEM_WR =>                        -- terminal communicates with memory and tries to save recieved data
                 mem_wr <= '1';
                 error_timer_en <= '1';
                 
@@ -263,7 +263,7 @@ begin
                 if error_timer_max = '1' then                                               -- write took too long, there must be an error
                     status_word_d(0) <= '1';                                                -- set status word error flag to '1'
                     state_d <= S_MEM_RD_DONE;
-
+                
                 elsif mem_rd_done = '1' and counter_q = data_word_count_q  then             -- memory read completed successfuly -> status word
                     mem_rd <= '0';
                     sram_wr <= '1';
@@ -326,13 +326,16 @@ begin
                     state_d <= S_IDLE;
 
                 elsif RX_done = "01" and                                                        -- terminal should send data to all other terminals
-                    decoder_data_in(10) = '1' and 
-                    decoder_data_in(15 downto 11) = std_logic_vector(terminal_address)  then 
+                    decoder_data_in(10) = '1' and   -- T/R bit
+                    decoder_data_in(15 downto 11) = std_logic_vector(TERMINAL_ADDRESS)  then 
                     
                     state_d <= S_MEM_READ;
-
-                elsif RX_done = "10" then
+                    --counter_d <= counter_q + 1; (test is needed)
+                elsif RX_done = "10" then                                                       -- terminal will be recieving data to all terminals
                     state_d <= S_DATA_RX;
+                    sram_wr <= '1';                 -- write to an sram
+                    error_timer_en <= '0';          -- erase error_timer
+                    counter_d <= counter_q + 1;     -- increment amount of data words received
                 end if;
             when S_MODE_CODE =>
 
