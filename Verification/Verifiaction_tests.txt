@@ -36,7 +36,7 @@ T/R = Transmit/Receive bit ('1' = transmit)
 
 *není-li uvedena -> ADRESA TERMINÁLU
 
-*TEST Č. 1*
+*TEST Č. 1*	-- HOTOVO
 
 ÚČEL:
 Ověřit schopnost terminálu vyhodnotit požadavek na příjem a odeslání dat ze subsystému bez chyb.
@@ -53,51 +53,47 @@ POPIS TESTU:
 10) Přijetí 3 datových slov
 
 
-*TEST Č. 2*
+*TEST Č. 2*	-- HOTOVO
 
 ÚČEL:
-Ověřit schopnost terminálu adekvátně reagovat na chybu na lince (špatná parita, špatné kódování, bez synchronizace) při odesílání příkazového slova. Reakce je uložení chyby do SW, ale neodeslání SW.
+Ověřit schopnost terminálu adekvátně reagovat na chybu na lince (špatná parita, špatné kódování, bez synchronizace) při odesílání příkazového slova. Reakce je uložení chyby do SW, ale bez jeho automatického odeslání. Odeslání je vynuceno formou Mode Code. 
 POPIS TESTU:
 1) Reset terminálu
-2) Odeslání příkazového slova (T/R = '0', DC = 3, SA = "00000", chybná parita)
+2) Odeslání příkazového slova (T/R = '0', DC = 3, SA = "00010", chybná parita)
 3) Odeslání tří datových slov
 4) Odeslání Mode code (Transmit status word) požadavku
 5) Přijetí stavového slova
-6)
-7) Odeslání příkazového slova (T/R = '0', DC = 4, SA = "00001", bez synchronizace)
-8) Odeslání čtyř datových slov
-9) Odeslání Mode code (Transmit status word) požadavku
-10) Přijetí stavového slova
+6) Odeslání příkazového slova (T/R = '0', DC = 4, SA = "00001", krátká zpráva)
+7) Odeslání čtyř datových slov
+8) Odeslání Mode code (Transmit status word) požadavku
+9) Přijetí stavového slova
 
 
-*TEST Č. 3*
+*TEST Č. 3*	-- HOTOVO
 
 ÚČEL:
 Ověřit schopnost terminálu adekvátně reagovat na chybu na lince (špatná parita, špatné kódování, bez synchronizace) při odesílání datového slova. Reakce je po obdržení všech zpráv neuložení do paměti a odeslání stavového slova s informací o chybě.
 POPIS TESTU:
 1) Reset terminálu
-2) Odeslání příkazového slova (T/R = '0', DC = 5, SA = "00000")
-3) Odeslání pěti datových slov (chybná parita)
+2) Odeslání příkazového slova (T/R = '0', DC = 3, SA = "00001")
+3) Odeslání tří datových slov (chybná parita)
 4) Přijetí stavového slova
 5)
 6) Odeslání příkazového slova (T/R = '0', DC = 3, SA = "01100")
 7) Odeslání tří datových slov (bez synchronizace)
-8) Přijetí stavového slova
-9) Odeslání příkazového slova (T/R = '1', DC = 3, SA = "01100")
-10) Přijetí stavového slova
-11) přijetí tří datových slov
+8) Odeslání Mode code (Transmit status word) požadavku
+9) Přijetí stavového slova
 
-*TEST Č. 4*
+*TEST Č. 4*	-- HOTOVO
 
 ÚČEL:
 Ověřit schopnost terminálu reagovat na přijetí méně datových slov, než bylo očekáváno.
 POPIS TESTU:
 1) Reset terminálu
-2) Odeslání příkazového slova (T/R = '0', DC = 5, SA = "00000")
+2) Odeslání příkazového slova (T/R = '0', DC = 5, SA = "01100")
 3) Odeslání tří datových slov
-5)
-7) Odeslání příkazového slova (T/R = '0', DC = 3, SA = "01100")
-8) Odeslání tří datových slov (bez synchronizace)
+5) Počkat 35 us 
+8) Odeslání Mode code (Transmit status word) požadavku
 9) Přijetí stavového slova
 
 *TEST Č. 5*

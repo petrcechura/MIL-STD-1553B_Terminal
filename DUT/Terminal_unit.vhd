@@ -31,7 +31,8 @@ architecture rtl of Terminal_unit is
             reset : in std_logic;
             in_positive, in_negative : in std_logic;
             DATA_OUT : out std_logic_vector(15 downto 0);
-            RX_DONE : out std_logic_vector(1 downto 0)
+            RX_DONE : out std_logic_vector(1 downto 0);
+            RX_flag : out std_logic
         );
     end component;
 
@@ -53,6 +54,7 @@ architecture rtl of Terminal_unit is
             clk   : in std_logic;
             reset : in std_logic;
             rx_done : in std_logic_vector(1 downto 0);
+            rx_flag : in std_logic;
             tx_done : in std_logic;
             decoder_data_in : in std_logic_vector(15 downto 0);
             encoder_data_out : out std_logic_vector(15 downto 0); 
@@ -90,6 +92,7 @@ architecture rtl of Terminal_unit is
     type t_MD_TO_FSM is record
         DATA_OUT :  std_logic_vector(15 downto 0);
         RX_DONE : std_logic_vector(1 downto 0);
+        RX_flag : std_logic;
     end record;
     signal MD_TO_FSM : t_MD_TO_FSM;
 
@@ -120,7 +123,8 @@ begin
             in_positive => in_pos,
             in_negative => in_neg,
             DATA_OUT =>  MD_TO_FSM.DATA_OUT,
-            RX_DONE =>  MD_TO_FSM.RX_DONE
+            RX_DONE =>  MD_TO_FSM.RX_DONE,
+            RX_flag => MD_TO_FSM.RX_flag
         );
 
     ME: ManchesterEncoder
@@ -141,6 +145,7 @@ begin
             reset => reset,
 
             rx_done => MD_TO_FSM.RX_DONE,
+            rx_flag => MD_TO_FSM.RX_FLAG,
             decoder_data_in => MD_TO_FSM.DATA_OUT,
             
             tx_done => ME_TO_FSM.TX_DONE,

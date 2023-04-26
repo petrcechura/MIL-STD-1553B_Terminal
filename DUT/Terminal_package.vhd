@@ -15,6 +15,4 @@ package Terminal_package is
     constant ADDR_SIZE : integer := 31;
     --total stored bits = ADDR_CNT * ADDR_SIZE * 16
 
-
-
 end package;

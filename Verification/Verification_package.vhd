@@ -44,6 +44,7 @@ package verification_package is
         bits : unsigned(bus_width-1 downto 0);
         bits_length : integer;
         start : std_logic;
+        sync : Boolean;
         command_number : integer; -- *(1)
     end record;
 
@@ -68,10 +69,19 @@ package verification_package is
                              signal to_bfm : out t_bfm_com;
                              signal from_bfm : in std_logic);
 
-    procedure Send_invalid_word(variable bits : in unsigned(15 downto 0);
-                                variable data_length : in integer;
-                                variable parite : std_logic;     -- '1' = odd, '0' = even
-                                variable sync_type : std_logic); -- '1' = com_word, '0' = data_word
+    procedure Send_invalid_command_word(variable bits : in unsigned(15 downto 0);
+                             data_length : integer;
+                             wrong_parite : Boolean; 
+                             sync : Boolean;
+                             signal to_bfm : out t_bfm_com;
+                             signal from_bfm : in std_logic);
+
+    procedure Send_invalid_data_word(   variable bits : in unsigned(15 downto 0);
+                             data_length : integer;
+                             wrong_parite : Boolean; 
+                             sync : Boolean;
+                             signal to_bfm : out t_bfm_com;
+                             signal from_bfm : in std_logic);
 
     procedure Receive_word (signal to_bfm : out t_bfm_com;
                             signal from_bfm : in std_logic);
@@ -118,7 +128,7 @@ package body Verification_package is
         wait for 1 ns;
         to_bfm.start <= '0';
 
-        wait until from_bfm <= '1';
+        wait until from_bfm = '1';
 
     end procedure;
 
@@ -147,16 +157,77 @@ package body Verification_package is
         wait for 1 ns;
         to_bfm.start <= '0';
 
-        wait until from_bfm <= '1';
+        wait until from_bfm = '1';
 
     end procedure;
 
-    procedure Send_invalid_word(variable bits : in unsigned(15 downto 0);
-                                variable data_length : in integer;
-                                variable parite : std_logic; 
-                                variable sync_type : std_logic) is
+    procedure Send_invalid_command_word(variable bits : in unsigned(15 downto 0);
+                                        data_length : integer;
+                                        wrong_parite : Boolean; 
+                                        sync : Boolean;
+                                        signal to_bfm : out t_bfm_com;
+                                        signal from_bfm : in std_logic) is
+        variable parity_bit : std_logic := '0';
     begin
 
+        to_bfm.command_number <= 4;
+        to_bfm.sync <= sync;
+
+        -- parity calculation
+        parity_bit := bits(15);
+        for i in 14 downto 0 loop
+            parity_bit := parity_bit xor bits(i); 
+        end loop;
+        parity_bit := (not parity_bit) when wrong_parite = true else parity_bit;
+        
+        to_bfm.bits <= bits & parity_bit;
+        to_bfm.bits_length <= data_length;
+        wait for 1 ns;
+
+        --START TEST
+        report "SENDING INVALID COMMAND WORD... (" & to_string(bits) & ")";
+        report "...with bits length: " & to_string(data_length);
+        report "... and parity is: "  & to_string(parity_bit);
+        to_bfm.start <= '1';
+        wait for 1 ns;
+        to_bfm.start <= '0';
+
+        wait until from_bfm = '1';
+
+    end procedure;
+
+    procedure Send_invalid_data_word(   variable bits : in unsigned(15 downto 0);
+                                        data_length : integer;
+                                        wrong_parite : Boolean;
+                                        sync : Boolean; 
+                                        signal to_bfm : out t_bfm_com;
+                                        signal from_bfm : in std_logic) is
+        variable parity_bit : std_logic := '0';
+    begin
+
+        to_bfm.command_number <= 5;
+        to_bfm.sync <= sync;
+        
+        -- parity calculation
+        parity_bit := bits(15);
+        for i in 14 downto 0 loop
+            parity_bit := parity_bit xor bits(i); 
+        end loop;
+        parity_bit := (not parity_bit) when wrong_parite = true else parity_bit;
+        
+        to_bfm.bits <= bits & parity_bit;
+        to_bfm.bits_length <= data_length;
+        wait for 1 ns;
+
+        --START TEST
+        report "SENDING INVALID DATA WORD... (" & to_string(bits) & ")";
+        report "...with bits length: " & to_string(data_length);
+        report "... and parity is: "  & to_string(parity_bit);
+        to_bfm.start <= '1';
+        wait for 1 ns;
+        to_bfm.start <= '0';
+
+        wait until from_bfm = '1';
 
     end procedure;
 
@@ -172,7 +243,7 @@ package body Verification_package is
     end procedure;
 
 
-
+    -- ********************** --
     --- ***BFM PROCEDURES*** ---
     -- ********************** --
     procedure Make_manchester (  variable data_bit : std_logic;

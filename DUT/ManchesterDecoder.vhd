@@ -37,7 +37,8 @@ entity ManchesterDecoder is
         reset : in std_logic;
         in_positive, in_negative : in std_logic;
         DATA_OUT : out std_logic_vector(15 downto 0);
-        RX_DONE : out std_logic_vector(1 downto 0)
+        RX_DONE : out std_logic_vector(1 downto 0);
+        RX_flag : out std_logic
     );
 end entity;
 
@@ -132,11 +133,13 @@ begin
         sync_type_d <= sync_type_q;
         RX_DONE <= "00";
         state_d <= state_q;
+        RX_flag <= '1';
 
         case state_q is 
             
             when S_IDLE =>
-
+                RX_flag <= '0';
+                
                 if in_positive = '1' and in_negative = '0' then
                     state_d <= S_CMD_SYNC_1;
                 elsif in_negative = '1' and in_positive = '0' then

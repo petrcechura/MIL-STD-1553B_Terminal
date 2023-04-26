@@ -14,6 +14,7 @@ entity FSM_brain is
 
         -- FSM & decoder
         rx_done : in std_logic_vector(1 downto 0);
+        rx_flag : in std_logic;
         decoder_data_in : in std_logic_vector(15 downto 0);   
 
         -- FSM & encoder
@@ -68,9 +69,12 @@ architecture rtl of FSM_brain is
     -- Counter
     signal counter_d, counter_q : unsigned(4 downto 0);
 
+    -- msg error flag
+    signal msg_err_d, msg_err_q : std_logic;
+
 
     -- INTERNAL ERROR TIMER 
-    --some states shouldn't last longer than for 50 us; if that happens, there must be an error;
+    --some states shouldn't last longer than for 20 us; if that happens, there must be an error;
     signal error_timer_d, error_timer_q : unsigned(10 downto 0);
     signal error_timer_max : std_logic;
     signal error_timer_en : std_logic;
@@ -91,6 +95,7 @@ begin
             data_wr_q <= '0';
             counter_q <= (others => '0') ;
             error_timer_q <= (others => '0'); 
+            msg_err_q <= '0';
 
             -- status word default set
             status_word_q(15 downto 11) <= TERMINAL_ADDRESS;    -- terminal address set     
@@ -109,20 +114,21 @@ begin
             data_wr_q <= data_wr_d;
             counter_q <= counter_d;
             error_timer_q <= error_timer_d;
+            msg_err_q <= msg_err_d;
 
         end if;
     end process;
 
     --decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, error_timer_en, subaddress_q, data_word_count_q, state_d, state_q, sram_data_in, mem_data_in, status_word_d
     --comb part
-    process (decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, error_timer_en, subaddress_q, data_word_count_q, state_d, state_q, sram_data_in, mem_data_in, status_word_d)
+    process (decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, error_timer_en, subaddress_q, data_word_count_q, state_d, state_q, sram_data_in, mem_data_in, status_word_d, msg_err_q, rx_flag)
     begin
         state_d <= state_q;
         subaddress_d <= subaddress_q;
         data_word_count_d <= data_word_count_q;
         status_word_d <= status_word_q;
         counter_d <= counter_q;
-
+        
         error_timer_en <= '0';
         mem_wr <= '0';
         mem_rd <= '0';
@@ -130,6 +136,7 @@ begin
         TX_enable <= "00";
         sram_wr <= '0';
         sram_rd <= '0';
+        msg_err_d <= '0';
 
         sram_data_out <= decoder_data_in;
         mem_data_out <= sram_data_in;
@@ -175,22 +182,36 @@ begin
             
 
             when S_DATA_RX =>   -- terminal is receiving data from decoder
-                error_timer_en <= '1';
+                msg_err_d <= msg_err_q;
 
-                if error_timer_max = '1' then                           -- error occured
-                    status_word_d(4) <= '1';
-                    state_d <= S_IDLE;
-                elsif counter_q = data_word_count_q then                -- expected amount of data words has been received, now save it
-                    state_d <= S_MEM_WR;
+                if counter_q = data_word_count_q then                -- expected amount of data words has been received, now save it
                     counter_d <= counter_q - 1;
+                    if msg_err_q = '0' then
+                        state_d <= S_MEM_WR;
+                    else                            -- if an error occured in data words (wrong parity etc, do not save data and send status word)
+                        --TODO erase data in sram
+                        status_word_d(10) <= '1';
+                        state_d <= S_MEM_WR_DONE;
+                        msg_err_d <= '0';
+                    end if;
 
-                elsif rx_done = "10" then                   -- still receiving data
+                elsif rx_done = "10" and rx_flag = '1' then                   -- still receiving data
                     sram_wr <= '1';                 -- write to an sram
                     error_timer_en <= '0';          -- erase error_timer
                     counter_d <= counter_q + 1;     -- increment amount of data words received
 
                 elsif rx_done = "01" then
-                    -- error handle (unexpected – too low – amount of data words)
+                    -- error handle (unexpected command word received)
+                
+                elsif rx_done = "11" then           -- data word with error has been received
+                    sram_wr <= '1';                 -- write to an sram
+                    error_timer_en <= '0';          -- erase error_timer
+                    counter_d <= counter_q + 1;     -- increment amount of data words received  
+                    msg_err_d <= '1';    
+                    
+                elsif rx_flag = '0' then    -- data rec ended too soon -> error
+                    status_word_d(10) <= '1';
+                    state_d <= S_IDLE;
                 end if;
 
             when S_MEM_WR =>    -- terminal communicates with memory and tries to save recieved data
@@ -353,7 +374,7 @@ begin
             error_timer_d <= (others => '0'); 
         end if;
 
-        if error_timer_q = 1600-1 then -- 50 us
+        if error_timer_q = 700-1 then -- 20 us
             error_timer_max <= '1';
         else
             error_timer_max <= '0';

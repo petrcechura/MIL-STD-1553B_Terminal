@@ -52,10 +52,26 @@ begin
                 end loop;
 
             elsif command.command_number = 3 then                   -- TRANSMITT WORD WITHOUT SYNCHRONIZE
+
+            elsif command.command_number = 4 then                   -- TRANSMITT INVALID COMMAND WORD
+                if command.sync = true then
+                    Make_sync(cmd_word, pos_data_out, neg_data_out);
+                end if;
+
+                for i in command.bits_length - 1 downto 0 loop
+                    d_bit := command.bits(i);
+                    Make_manchester(d_bit, pos_data_out, neg_data_out);
+                end loop;
+
+            elsif command.command_number = 5 then                   -- TRANSMITT INVALID DATA WORD
+                if command.sync = true then
+                    Make_sync(data_word, pos_data_out, neg_data_out);
+                end if;
                 
-
-            elsif command.command_number = 4 then                   -- TRANSMITT INVALID WORD (too short)
-
+                for i in command.bits_length - 1 downto 0 loop
+                    d_bit := command.bits(i);
+                    Make_manchester(d_bit, pos_data_out, neg_data_out);
+                end loop;
             elsif command.command_number = 7 then                   -- RECEIVE WORD FROM TERMINAL
                 wait until RX_done /= "00";
                 

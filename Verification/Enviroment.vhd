@@ -92,7 +92,7 @@ begin
 
 
     MAIN: process
-        variable TEST_NUMBER : integer := 1;
+        variable TEST_NUMBER : integer := 4;
 
         -- COMMAND WORD SETTINGS
         variable address : unsigned(4 downto 0) := "11011";
@@ -164,6 +164,7 @@ begin
             
             -- receive status word  (9)
             Receive_word(com, response);
+
             -- receive data words (10)
             for i in 0 to to_integer(data_word_count)-1 loop
                 Receive_word(com, response);
@@ -185,14 +186,164 @@ begin
             rst <= '0';
             wait for 2 us;
             
-            -- send command word    (2)
+            -- send invalid command word    (2)
             address := TERMINAL_ADDRESS;
             TR_bit := '0';
             data_word_count := "00011";
+            subaddress := "00010";
+            bits := address & TR_bit & subaddress & data_word_count;
+            wait for 1 ns;
+            Send_invalid_command_word(bits, 17, true, true, com, response);
+
+            -- send data words  (3)
+            bits := "0000000000000001";
+            for i in 0 to to_integer(data_word_count)-1 loop
+                bits := bits + 1;
+                Send_data_word(bits, com, response);
+            end loop;
+
+            wait for 35 us;
+
+            -- send command word-MODECODE    (4)
+            address := TERMINAL_ADDRESS;
+            TR_bit := '0';
             subaddress := "00000";
+            data_word_count := "00010"; -- (send status word mode code)
             wait for 1 ns;
             Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+                        
+            -- receive status word  (5)
+            Receive_word(com, response);
+
+            wait for 35 us;
+
+            -- send invalid command word    (6)
+            address := TERMINAL_ADDRESS;
+            TR_bit := '0';
+            data_word_count := "00011";
+            subaddress := "00010";
+            bits := address & TR_bit & subaddress & data_word_count;
+            wait for 1 ns;
+            Send_invalid_command_word(bits, 14, false, true, com, response);
+
+            -- send data words  (7)
+            bits := "0000000000000001";
+            for i in 0 to to_integer(data_word_count)-1 loop
+                bits := bits + 1;
+                Send_data_word(bits, com, response);
+            end loop;
+
+            wait for 35 us;
+
+            -- send command word-MODECODE    (8)
+            address := TERMINAL_ADDRESS;
+            TR_bit := '0';
+            subaddress := "00000";
+            data_word_count := "00010"; -- (send status word mode code)
+            wait for 1 ns;
+            Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+                        
+            -- receive status word  (9)
+            Receive_word(com, response);
+
+
+        elsif TEST_NUMBER = 3 then 
+            report "TEST NO. 3";
+            -- terminal reset (1)
+            rst <= '1';
+            wait for 2 us;
+            rst <= '0';
+            wait for 2 us;
             
+            -- send command word    (2)
+            address := TERMINAL_ADDRESS;
+            TR_bit := '0';
+            data_word_count := "00010";
+            subaddress := "00011";
+            wait for 1 ns;
+            Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+
+            -- send invalid data words    (3)
+            bits := "0000000000000001";
+            for i in 0 to to_integer(data_word_count)-1 loop
+                bits := bits + 1;
+                Send_invalid_data_word(bits, 17, true, true, com, response);
+            end loop;
+
+            -- receive status word  (4)
+            Receive_word(com, response);
+
+            wait for 35 us;
+
+            -- send command word    (6)
+            address := TERMINAL_ADDRESS;
+            TR_bit := '0';
+            data_word_count := "01100";
+            subaddress := "00011";
+            wait for 1 ns;
+            Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+
+            -- send invalid data words    (7)
+            bits := "0000000000000001";
+            for i in 0 to to_integer(data_word_count)-1 loop
+                bits := bits + 1;
+                Send_invalid_data_word(bits, 17, false, false, com, response);
+            end loop;
+
+            -- send command word-MODECODE    (8)
+            address := TERMINAL_ADDRESS;
+            TR_bit := '0';
+            subaddress := "00000";
+            data_word_count := "00010"; -- (send status word mode code)
+            wait for 1 ns;
+            Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+
+            -- receive status word  (9)
+            Receive_word(com, response);
+
+        elsif TEST_NUMBER = 4 then
+            report "TEST NO. 3";
+            -- terminal reset (1)
+            rst <= '1';
+            wait for 2 us;
+            rst <= '0';
+            wait for 2 us;
+
+            -- send command word    (2)
+            address := TERMINAL_ADDRESS;
+            TR_bit := '0';
+            data_word_count := "00101";
+            subaddress := "01100";
+            wait for 1 ns;
+            Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+
+            -- send data words  (3)
+            bits := "0000000000000001";
+            for i in 0 to to_integer(data_word_count)-3 loop
+                bits := bits + 1;
+                Send_data_word(bits, com, response);
+            end loop;            
+            
+            -- wait (4)
+            wait for 35 us;
+
+            -- send command word-MODECODE    (5)
+            address := TERMINAL_ADDRESS;
+            TR_bit := '0';
+            subaddress := "00000";
+            data_word_count := "00010"; -- (send status word mode code)
+            wait for 1 ns;
+            Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+                        
+            -- receive status word  (6)
+            Receive_word(com, response);            
+
+
+
+
+
+
+
         end if;
         
         
