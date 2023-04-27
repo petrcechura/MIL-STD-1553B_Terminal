@@ -16,7 +16,9 @@ entity Terminal_unit is
         mem_wr_done, mem_rd_done : in std_logic;
         mem_subaddr : out std_logic_vector(4 downto 0);
         data_in : in std_logic_vector(15 downto 0);
-        data_out : out std_logic_vector(15 downto 0)
+        data_out : out std_logic_vector(15 downto 0);
+        mode_code : out std_logic_vector(4 downto 0);
+        synchronize : out std_logic_vector(15 downto 0)
 
     );
 end entity;
@@ -71,7 +73,9 @@ architecture rtl of Terminal_unit is
             sram_data_in : in std_logic_vector(15 downto 0);
             sram_wr : out std_logic;
             sram_rd : out std_logic;
-            sram_erase : out std_logic
+            sram_erase : out std_logic;
+            mode_code : out std_logic_vector(4 downto 0);
+            synchronize : out std_logic_vector(15 downto 0)
         );
     end component;
 
@@ -168,7 +172,10 @@ begin
             sram_data_in => FSM_TO_SRAM.sram_data_in,
             sram_wr => FSM_TO_SRAM.sram_wr,
             sram_rd => FSM_TO_SRAM.sram_rd,
-            sram_erase => FSM_TO_SRAM.sram_erase
+            sram_erase => FSM_TO_SRAM.sram_erase,
+
+            mode_code => mode_code,
+            synchronize => synchronize
         );
 
     SRAM_I: SRAM

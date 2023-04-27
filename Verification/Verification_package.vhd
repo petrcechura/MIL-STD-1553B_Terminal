@@ -71,14 +71,14 @@ package verification_package is
 
     procedure Send_invalid_command_word(variable bits : in unsigned(15 downto 0);
                              data_length : integer;
-                             wrong_parite : Boolean; 
+                             valid_parity : Boolean; 
                              sync : Boolean;
                              signal to_bfm : out t_bfm_com;
                              signal from_bfm : in std_logic);
 
     procedure Send_invalid_data_word(   variable bits : in unsigned(15 downto 0);
                              data_length : integer;
-                             wrong_parite : Boolean; 
+                             valid_parity : Boolean; 
                              sync : Boolean;
                              signal to_bfm : out t_bfm_com;
                              signal from_bfm : in std_logic);
@@ -89,7 +89,7 @@ package verification_package is
 
 
     --************************************************--
-    --    ** PROCEDURES USED IN BFM TO MAKE WORD **   --
+    --    ** PROCEDURES USED IN BFM TO MAKE WORDS **   --
     --************************************************--
     procedure Make_sync(signal sync_type : in std_logic; -- '1' = com_word, '0' = data_word
                         signal sync_pos, sync_neg : out std_logic);
@@ -163,7 +163,7 @@ package body Verification_package is
 
     procedure Send_invalid_command_word(variable bits : in unsigned(15 downto 0);
                                         data_length : integer;
-                                        wrong_parite : Boolean; 
+                                        valid_parity : Boolean; 
                                         sync : Boolean;
                                         signal to_bfm : out t_bfm_com;
                                         signal from_bfm : in std_logic) is
@@ -178,7 +178,7 @@ package body Verification_package is
         for i in 14 downto 0 loop
             parity_bit := parity_bit xor bits(i); 
         end loop;
-        parity_bit := (not parity_bit) when wrong_parite = true else parity_bit;
+        parity_bit := parity_bit when valid_parity = true else not parity_bit;
         
         to_bfm.bits <= bits & parity_bit;
         to_bfm.bits_length <= data_length;
@@ -198,7 +198,7 @@ package body Verification_package is
 
     procedure Send_invalid_data_word(   variable bits : in unsigned(15 downto 0);
                                         data_length : integer;
-                                        wrong_parite : Boolean;
+                                        valid_parity : Boolean;
                                         sync : Boolean; 
                                         signal to_bfm : out t_bfm_com;
                                         signal from_bfm : in std_logic) is
@@ -213,7 +213,7 @@ package body Verification_package is
         for i in 14 downto 0 loop
             parity_bit := parity_bit xor bits(i); 
         end loop;
-        parity_bit := (not parity_bit) when wrong_parite = true else parity_bit;
+            parity_bit := parity_bit when valid_parity = true else not parity_bit;
         
         to_bfm.bits <= bits & parity_bit;
         to_bfm.bits_length <= data_length;

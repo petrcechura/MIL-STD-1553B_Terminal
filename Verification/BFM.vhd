@@ -85,8 +85,6 @@ begin
                 assert (true)
                     report "Unrecognized command number!"
                     severity error;
-                
-                wait;
             end if;
 
             pos_data_out <= '0';

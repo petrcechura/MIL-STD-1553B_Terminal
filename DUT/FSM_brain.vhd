@@ -265,8 +265,12 @@ begin
                 TX_enable <= "01";
                 encoder_data_out <= std_logic_vector(status_word_q);
                 if tx_done = '1' then                                   -- when transmitting is done, go to IDLE state
-                    status_word_d(10 downto 0) <= (others => '0');      -- reset error flags (they have already been sent)
-                    state_d <= S_IDLE;
+                    if decoder_data_in(9 downto 5) = "00000" and data_word_count_q = MC_SEND_SW then   -- for MC_SEND_SW, status word shall not be reset after transmit
+                        state_d <= S_IDLE;
+                    else
+                        status_word_d(10 downto 0) <= (others => '0');      -- reset error flags (they have already been sent)
+                        state_d <= S_IDLE;
+                    end if;
                 end if;
                 
             when S_MEM_READ =>                                                              -- read from memory all data that is needed
@@ -356,18 +360,20 @@ begin
             when S_MODE_CODE =>
                 mode_code_d <= std_logic_vector(data_word_count_q);
 
-                if data_word_count_q = "10001" then          -- MC synchronize (with data word)
+                if data_word_count_q = "10001" then                         -- MC synchronize (with data word)
                     error_timer_en <= '1';
 
-                    if error_timer_max = '1' then               -- no data word received
+                    if error_timer_max = '1' then                           -- no data word received
                         status_word_d(10) <= '1';
                         state_d <= S_IDLE;
-                    elsif RX_DONE = "10" then              -- data word received
+                    elsif RX_DONE = "10" then                               -- data word received
                         synchronize_d <= decoder_data_in;
-                        state_d <= S_IDLE;
+                        state_d <= S_STAT_WRD_TX;                           -- after valid synchronization -> send status word
+                        encoder_data_out <= std_logic_vector(status_word_q);
+                        data_wr_d <= '1';
                     end if;
 
-                elsif data_word_count_q = MC_SEND_SW then       -- MC transmit status word
+                else                                                        -- all other mode codes -> send status word
                     encoder_data_out <= std_logic_vector(status_word_q);
                     data_wr_d <= '1';
                     state_d <= S_STAT_WRD_TX;
@@ -385,6 +391,7 @@ begin
     encoder_data_wr <= data_wr_q;
     mem_subaddr <= subaddress_q;
     mode_code <= mode_code_q;
+    synchronize <= synchronize_q;
 
     -- ERROR TIMER (9-bit)
     --comb part

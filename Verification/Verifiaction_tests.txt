@@ -96,19 +96,20 @@ POPIS TESTU:
 8) Odeslání Mode code (Transmit status word) požadavku
 9) Přijetí stavového slova
 
-*TEST Č. 5*
-Ověřit schopnost terminálu reagovat na Mode Code požadavky (včetně vystavení Mode code slova na výstup).
+*TEST Č. 5*	-- HOTOVO
+Ověřit schopnost terminálu reagovat na Mode Code požadavky (včetně vystavení Mode code slova na výstup) podle MIL-STD-1553B. Po každém Mode code je přijato stavové slovo. Při MC "Transmit status word" odeslané stavové slovo v terminálu zůstává stejné (neresetuje se -> MIL-STD-1553B)
 ÚČEL:
 
 POPIS TESTU:
 1) Reset terminálu
-2) Odeslání požadavku Mode Code (Transmit status word)
-3) Přijetí stavového slova
-4) 
+2) Odeslání neplatného požadavku Mode Code
+3) Odeslání požadavku Mode Code (Transmit status word)
+4) Přijetí stavového slova
 5) Odeslání požadavku Mode Code (synchronizace)
 6) Odeslání datového slova
-7) 
-8) Odeslání požadavku Mode Code (-)
+7) Přijetí stavového slova
+7) Odeslání požadavku Mode Code (-)
+8) Přijetí stavového slova
 
 
 *TEST Č. 6*	-- HOTOVO
