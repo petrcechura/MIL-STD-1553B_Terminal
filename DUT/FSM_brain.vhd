@@ -28,6 +28,7 @@ entity FSM_brain is
         sram_data_in : in std_logic_vector(15 downto 0);
         sram_wr : out std_logic;
         sram_rd : out std_logic;
+        sram_erase : out std_logic;
 
         -- FSM & memory
         mem_wr : out std_logic;
@@ -36,7 +37,11 @@ entity FSM_brain is
         mem_data_in : in std_logic_vector(15 downto 0);
         mem_rd_done : in std_logic;
         mem_wr_done : in std_logic;
-        mem_subaddr : out std_logic_vector(4 downto 0)
+        mem_subaddr : out std_logic_vector(4 downto 0);
+
+        -- Mode code outputs
+        mode_code : out std_logic_vector(4 downto 0);
+        synchronize : out std_logic_vector(15 downto 0)
     );
 end entity;
 
@@ -52,7 +57,8 @@ architecture rtl of FSM_brain is
                     S_DATA_TX,
                     S_MEM_READ,
                     S_MEM_RD_DONE,
-                    S_BROADCAST
+                    S_BROADCAST,
+                    S_MC_BROADCAST
                     );
     signal state_d, state_q : t_state;
 
@@ -72,9 +78,12 @@ architecture rtl of FSM_brain is
     -- msg error flag
     signal msg_err_d, msg_err_q : std_logic;
 
+    -- mode code outputs flip flops
+    signal mode_code_d, mode_code_q : std_logic_vector(4 downto 0);
+    signal synchronize_d, synchronize_q : std_logic_vector(15 downto 0);
 
     -- INTERNAL ERROR TIMER 
-    --some states shouldn't last longer than for 20 us; if that happens, there must be an error;
+    --some states shouldn't last longer than for 50 us; if that happens, there must be an error;
     signal error_timer_d, error_timer_q : unsigned(10 downto 0);
     signal error_timer_max : std_logic;
     signal error_timer_en : std_logic;
@@ -96,6 +105,8 @@ begin
             counter_q <= (others => '0') ;
             error_timer_q <= (others => '0'); 
             msg_err_q <= '0';
+            mode_code_q <= (others => '0');
+            synchronize_q <= (others => '0');  
 
             -- status word default set
             status_word_q(15 downto 11) <= TERMINAL_ADDRESS;    -- terminal address set     
@@ -115,6 +126,8 @@ begin
             counter_q <= counter_d;
             error_timer_q <= error_timer_d;
             msg_err_q <= msg_err_d;
+            mode_code_q <= mode_code_d;
+            synchronize_q <= synchronize_d;
 
         end if;
     end process;
@@ -128,8 +141,11 @@ begin
         data_word_count_d <= data_word_count_q;
         status_word_d <= status_word_q;
         counter_d <= counter_q;
+        mode_code_d <= mode_code_q;
+        synchronize_d <= synchronize_q;
         
         error_timer_en <= '0';
+        sram_erase <= '0';
         mem_wr <= '0';
         mem_rd <= '0';
         data_wr_d <= '0';
@@ -157,7 +173,6 @@ begin
                             -- TODO mode code broadcast handle !
                         
                         elsif decoder_data_in(10) = '1' then --T/R bit
-
                             counter_d <= counter_q + 1;
                             state_d <= S_MEM_READ;
                         else
@@ -189,10 +204,9 @@ begin
                     if msg_err_q = '0' then
                         state_d <= S_MEM_WR;
                     else                            -- if an error occured in data words (wrong parity etc, do not save data and send status word)
-                        --TODO erase data in sram
-                        status_word_d(10) <= '1';
-                        msg_err_d <= '0';
-                        state_d <= S_MEM_WR_DONE;
+                        sram_erase <= '1';          -- data are invalid -> erase them
+                        status_word_d(10) <= '1';   -- msg err flag    
+                        state_d <= S_MEM_WR_DONE;   
                     end if;
 
                 elsif rx_done = "10" and rx_flag = '1' then                   -- still receiving data
@@ -308,8 +322,9 @@ begin
                 TX_enable <= "10";
                 encoder_data_out <= sram_data_in;
                 
-                if tx_done = '1' and counter_q = 0 then  -- data has been transmitted succesfully -> go to idle
+                if tx_done = '1' and counter_q = 1 then  -- data has been transmitted succesfully -> go to idle
                     state_d <= S_IDLE;
+                    counter_d <= counter_q -1;
                 
                 elsif tx_done = '1' then    -- while there are data to be transmitted, transmit
                     sram_rd <= '1';
@@ -329,7 +344,7 @@ begin
                     decoder_data_in(10) = '1' and   -- T/R bit
                     decoder_data_in(15 downto 11) = std_logic_vector(TERMINAL_ADDRESS)  then 
                     
-                    data_word_count_d <= unsigned(decoder_data_in(4 downto 0)); -- save data word count/mode code
+                    data_word_count_d <= unsigned(decoder_data_in(4 downto 0));                 -- save data word count/mode code
                     counter_d <= counter_q + 1;
                     state_d <= S_MEM_READ;
                 elsif RX_done = "10" then                                                       -- terminal will be recieving data to all terminals
@@ -339,6 +354,7 @@ begin
                     counter_d <= counter_q + 1;     -- increment amount of data words received
                 end if;
             when S_MODE_CODE =>
+                mode_code_d <= std_logic_vector(data_word_count_q);
 
                 if data_word_count_q = "10001" then          -- MC synchronize (with data word)
                     error_timer_en <= '1';
@@ -347,7 +363,7 @@ begin
                         status_word_d(10) <= '1';
                         state_d <= S_IDLE;
                     elsif RX_DONE = "10" then              -- data word received
-                        -- TODO set received word as output (sync info) 
+                        synchronize_d <= decoder_data_in;
                         state_d <= S_IDLE;
                     end if;
 
@@ -355,10 +371,11 @@ begin
                     encoder_data_out <= std_logic_vector(status_word_q);
                     data_wr_d <= '1';
                     state_d <= S_STAT_WRD_TX;
-
-                else
-                    --TODO set mode code number as output
                 end if;
+
+            when S_MC_BROADCAST =>
+                --todo  
+                state_d <= S_IDLE;
         end case;
 
     end process;
@@ -367,6 +384,7 @@ begin
     -- output signals taken from flip flops
     encoder_data_wr <= data_wr_q;
     mem_subaddr <= subaddress_q;
+    mode_code <= mode_code_q;
 
     -- ERROR TIMER (9-bit)
     --comb part
@@ -378,7 +396,7 @@ begin
             error_timer_d <= (others => '0'); 
         end if;
 
-        if error_timer_q = 700-1 then -- 20 us
+        if error_timer_q = 1600-1 then -- 50 us
             error_timer_max <= '1';
         else
             error_timer_max <= '0';

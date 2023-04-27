@@ -9,10 +9,11 @@ entity SRAM is
     port (
         clk   : in std_logic;
         reset : in std_logic;
-        
+
         --  WRITE DATA
         wr_en : in std_logic;
         wr_data : in std_logic_vector(16 - 1 downto 0);
+        erase_data : in std_logic;
 
         -- READ DATA
         rd_en : in std_logic;
@@ -48,9 +49,15 @@ begin
             head_q <= (others => '0');
             tail_q <= (others => '0'); 
         elsif rising_edge(clk) then
-            sram_q <= sram_d;
-            head_q <= head_d;
-            tail_q <= tail_d;
+            if erase_data = '1' then
+                sram_q <= (others => (others => '0') ); 
+                head_q <= (others => '0');
+                tail_q <= (others => '0'); 
+            else
+                sram_q <= sram_d;
+                head_q <= head_d;
+                tail_q <= tail_d;
+            end if;
         end if;
     end process;
 

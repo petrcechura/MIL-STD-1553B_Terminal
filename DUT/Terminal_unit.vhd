@@ -70,7 +70,8 @@ architecture rtl of Terminal_unit is
             sram_data_out : out std_logic_vector(15 downto 0);
             sram_data_in : in std_logic_vector(15 downto 0);
             sram_wr : out std_logic;
-            sram_rd : out std_logic
+            sram_rd : out std_logic;
+            sram_erase : out std_logic
         );
     end component;
 
@@ -80,6 +81,7 @@ architecture rtl of Terminal_unit is
             reset : in std_logic;
             wr_en : in std_logic;
             wr_data : in std_logic_vector(16 - 1 downto 0);
+            erase_data : in std_logic;
             rd_en : in std_logic;
             rd_data : out std_logic_vector(16 - 1 downto 0);
             empty : out std_logic;
@@ -111,6 +113,7 @@ architecture rtl of Terminal_unit is
         sram_data_in : std_logic_vector(15 downto 0);
         sram_wr : std_logic;
         sram_rd : std_logic;
+        sram_erase : std_logic;
     end record;
     signal FSM_TO_SRAM : t_FSM_TO_SRAM;
 
@@ -164,7 +167,8 @@ begin
             sram_data_out => FSM_TO_SRAM.sram_data_out,
             sram_data_in => FSM_TO_SRAM.sram_data_in,
             sram_wr => FSM_TO_SRAM.sram_wr,
-            sram_rd => FSM_TO_SRAM.sram_rd
+            sram_rd => FSM_TO_SRAM.sram_rd,
+            sram_erase => FSM_TO_SRAM.sram_erase
         );
 
     SRAM_I: SRAM
@@ -175,6 +179,7 @@ begin
             wr_data => FSM_TO_SRAM.sram_data_out,
             rd_en => FSM_TO_SRAM.sram_rd,
             rd_data => FSM_TO_SRAM.sram_data_in,
+            erase_data => FSM_TO_SRAM.sram_erase,
             empty => open,
             full => open,
             data_count => open

@@ -92,7 +92,7 @@ begin
 
 
     MAIN: process
-        variable TEST_NUMBER : integer := 1;
+        variable TEST_NUMBER : integer := 7;
 
         -- COMMAND WORD SETTINGS
         variable address : unsigned(4 downto 0) := "11011";
@@ -157,7 +157,7 @@ begin
             -- send command word    (8)
             address := TERMINAL_ADDRESS;
             TR_bit := '1';
-            data_word_count := "00111";
+            data_word_count := "00001";
             subaddress := "11100";
             wait for 1 ns;
             Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);   
@@ -171,11 +171,6 @@ begin
             end loop;
             
             report "TEST NO. 1 DONE";
-
-        
-
-
-
 
             
         elsif TEST_NUMBER = 2 then
@@ -414,8 +409,59 @@ begin
                     -- receive data words (5)
                     for i in 0 to to_integer(data_word_count)-1 loop
                         Receive_word(com, response);
-                    end loop;                    
+                    end loop;  
+                        
+                        
+                elsif TEST_NUMBER = 8 then
+                    -- terminal reset (1)
+                    rst <= '1';
+                    wait for 2 us;
+                    rst <= '0';
+                    wait for 2 us;                    
+                    
+                    -- send command word    (2)
+                    address := BROADCAST_ADDR;
+                    TR_bit := '0';
+                    data_word_count := "01110";
+                    subaddress := "10010";
+                    wait for 1 ns;
+                    Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
 
+                    -- send command word    (3)
+                    address := "10001";
+                    TR_bit := '1';
+                    data_word_count := "01110";
+                    subaddress := "10101";
+                    wait for 1 ns;
+                    Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);             
+                    
+                    -- send data words  (4)
+                    bits := "0000000000000001";
+                    for i in 0 to to_integer(data_word_count)-1 loop
+                        bits := bits + 1;
+                        Send_data_word(bits, com, response);
+                    end loop;                    
+                    
+                    wait for 35 us;
+
+                    -- send command word    (5)
+                    address := TERMINAL_ADDRESS;
+                    TR_bit := '1';
+                    data_word_count := "00101";
+                    subaddress := "10010";
+                    wait for 1 ns;
+                    Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);   
+
+                    -- receive status word  (6)
+                    Receive_word(com, response);
+
+                    -- receive data words (7)
+                    for i in 0 to to_integer(data_word_count)-1 loop
+                        Receive_word(com, response);
+                    end loop;
+
+                elsif TEST_NUMBER = 9 then
+                     
         end if;
         
 
@@ -465,7 +511,7 @@ begin
 
     CLK_P: process
     begin
-        for i in 0 to 40000 loop
+        for i in 0 to 60000 loop
             clk <= '1';
             wait for clk_period/2;
             clk <= '0';

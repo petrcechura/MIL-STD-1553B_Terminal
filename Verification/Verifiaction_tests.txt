@@ -111,7 +111,7 @@ POPIS TESTU:
 8) Odeslání požadavku Mode Code (-)
 
 
-*TEST Č. 6*
+*TEST Č. 6*	-- HOTOVO
 
 ÚČEL:
 Ověřit schopnost terminálu reagovat na broadcast požadavek k přijetí dat. Reakce je bez odeslání stavového slova.
@@ -123,7 +123,7 @@ POPIS TESTU:
 5) Přijetí stavového slova.
 6) Přijetí čtyř datových slov.
 
-*TEST Č. 7*
+*TEST Č. 7*	-- HOTOVO
 
 ÚČEL:
 Ověřit schopnost terminálu reagovat na broadcast požadavek k odeslání dat do ostatních terminálů.
@@ -134,26 +134,23 @@ POPIS TESTU:
 4] Přijetí stavového slova.
 5) Přijetí čtyř datových slov
 
-*TEST Č. X*
+*TEST Č. 8*	-- HOTOVO
 
 ÚČEL:
-
+Ověřit schopnost terminálu reagovat na broadcast požadavek k přijetí dat z jiného terminálu.
 POPIS TESTU:
 1) Reset terminálu
-2) 
-3) 
-4) 
-5) 
-6)
-7)
-8)
-9)
-10)
+2) Odeslání příkazového slova (T/R = '0', DC = 14, Addr = "00000", SA = "10010")
+3) Odeslání příkazového slova (T/R = '1', DC = 14, Addr = "10001", SA = "10101")
+4] Odeslání čtrnácti datových slov
+5) Odeslání příkazového slova (T/R = '1', DC = 5, SA = "10010")
+6) Přijetí stavového slova
+7) Přijetí pěti datových slov
 
-*TEST Č. X*
+*TEST Č. 9*	-- TODO
 
 ÚČEL:
-
+Ověřit schopnost terminálu reagovat na broadcast mode code požadavek, tj. vystavit slovo na výstup a v případě synchronizace ji vystavit na výstup.
 POPIS TESTU:
 1) Reset terminálu
 2) 

@@ -51,8 +51,6 @@ begin
                     Make_manchester(d_bit, pos_data_out, neg_data_out);
                 end loop;
 
-            elsif command.command_number = 3 then                   -- TRANSMITT WORD WITHOUT SYNCHRONIZE
-
             elsif command.command_number = 4 then                   -- TRANSMITT INVALID COMMAND WORD
                 if command.sync = true then
                     Make_sync(cmd_word, pos_data_out, neg_data_out);
@@ -84,7 +82,10 @@ begin
                 end if;
                 
             else
-                report "Unrecognized command number!";
+                assert (true)
+                    report "Unrecognized command number!"
+                    severity error;
+                
                 wait;
             end if;
 
