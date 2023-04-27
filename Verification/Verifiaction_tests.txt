@@ -108,8 +108,8 @@ POPIS TESTU:
 5) Odeslání požadavku Mode Code (synchronizace)
 6) Odeslání datového slova
 7) Přijetí stavového slova
-7) Odeslání požadavku Mode Code (-)
-8) Přijetí stavového slova
+8) Odeslání požadavku Mode Code (-)
+9) Přijetí stavového slova
 
 
 *TEST Č. 6*	-- HOTOVO
