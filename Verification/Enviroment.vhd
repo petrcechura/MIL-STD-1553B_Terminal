@@ -92,7 +92,7 @@ begin
 
 
     MAIN: process
-        variable TEST_NUMBER : integer := 7;
+        variable TEST_NUMBER : integer := 1;
 
         -- COMMAND WORD SETTINGS
         variable address : unsigned(4 downto 0) := "11011";
@@ -393,7 +393,7 @@ begin
                     wait for 2 us;
                     
                     -- send command word    (2)
-                    address := "00000";
+                    address := BROADCAST_ADDR;
                     TR_bit := '0';
                     data_word_count := "00100";
                     subaddress := "10001";

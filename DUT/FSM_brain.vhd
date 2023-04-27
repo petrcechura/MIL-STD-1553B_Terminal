@@ -173,7 +173,7 @@ begin
 
 
                 elsif rx_done="10" then     -- DATA WORD RECEIVED
-                    -- shouldnt happen by general
+                    -- shouldnt happen by general -> error
 
                 elsif rx_done="11" then     -- ERROR WHILE COLLECTING WORD
                     status_word_d(10) <= '1';                                       -- message error flag -> '0'
@@ -191,8 +191,8 @@ begin
                     else                            -- if an error occured in data words (wrong parity etc, do not save data and send status word)
                         --TODO erase data in sram
                         status_word_d(10) <= '1';
-                        state_d <= S_MEM_WR_DONE;
                         msg_err_d <= '0';
+                        state_d <= S_MEM_WR_DONE;
                     end if;
 
                 elsif rx_done = "10" and rx_flag = '1' then                   -- still receiving data
@@ -329,8 +329,9 @@ begin
                     decoder_data_in(10) = '1' and   -- T/R bit
                     decoder_data_in(15 downto 11) = std_logic_vector(TERMINAL_ADDRESS)  then 
                     
+                    data_word_count_d <= unsigned(decoder_data_in(4 downto 0)); -- save data word count/mode code
+                    counter_d <= counter_q + 1;
                     state_d <= S_MEM_READ;
-                    --counter_d <= counter_q + 1; (test is needed)
                 elsif RX_done = "10" then                                                       -- terminal will be recieving data to all terminals
                     state_d <= S_DATA_RX;
                     sram_wr <= '1';                 -- write to an sram
@@ -350,7 +351,7 @@ begin
                         state_d <= S_IDLE;
                     end if;
 
-                elsif data_word_count_q = "00010" then       -- MC transmit status word
+                elsif data_word_count_q = MC_SEND_SW then       -- MC transmit status word
                     encoder_data_out <= std_logic_vector(status_word_q);
                     data_wr_d <= '1';
                     state_d <= S_STAT_WRD_TX;
