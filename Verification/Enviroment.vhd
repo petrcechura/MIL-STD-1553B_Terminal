@@ -75,8 +75,8 @@ begin
     port map (
         clk   => clk,
         reset => rst,
-        in_positive => TU_TO_BFM.out_pos,
-        in_negative =>  TU_TO_BFM.out_neg,
+        in_pos => TU_TO_BFM.out_pos,
+        in_neg =>  TU_TO_BFM.out_neg,
         DATA_OUT =>  DEC_TO_BFM.data_from_TU,
         RX_DONE =>  DEC_TO_BFM.RX_done
     );
@@ -92,7 +92,7 @@ begin
 
 
     MAIN: process
-        variable TEST_NUMBER : integer := 5;
+        variable TEST_NUMBER : integer := 9;
 
         -- COMMAND WORD SETTINGS
         variable address : unsigned(4 downto 0) := "11011";
@@ -511,6 +511,31 @@ begin
                     end loop;
 
                 elsif TEST_NUMBER = 9 then
+                    -- terminal reset (1)
+                    rst <= '1';
+                    wait for 2 us;
+                    rst <= '0';
+                    wait for 2 us; 
+                    
+                    -- send command word-MODECODE (2)
+                    address := BROADCAST_ADDR;
+                    TR_bit := '0';
+                    subaddress := MODECODE_SUBADDR;
+                    data_word_count := MC_SYNC;
+                    wait for 1 ns;
+                    Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+                    
+                    -- send data word (3)
+                    bits := "1000111101011010";
+                    Send_data_word(bits, com, response);
+                    
+                    -- send command word-MODECODE (4)
+                    address := BROADCAST_ADDR;
+                    TR_bit := '0';
+                    subaddress := MODECODE_SUBADDR;
+                    data_word_count := "10010";
+                    wait for 1 ns;
+                    Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
                      
         end if;
         

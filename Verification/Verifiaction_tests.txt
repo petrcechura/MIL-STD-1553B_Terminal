@@ -148,21 +148,15 @@ POPIS TESTU:
 6) Přijetí stavového slova
 7) Přijetí pěti datových slov
 
-*TEST Č. 9*	-- TODO
+*TEST Č. 9*	-- HOTOVO
 
 ÚČEL:
 Ověřit schopnost terminálu reagovat na broadcast mode code požadavek, tj. vystavit slovo na výstup a v případě synchronizace ji vystavit na výstup.
 POPIS TESTU:
 1) Reset terminálu
-2) 
-3) 
-4) 
-5) 
-6)
-7)
-8)
-9)
-10)
+2) Odeslání požadavku Mode code v režimu Broadcast (synchronizace)
+3) Odeslání datového slova
+4) Odeslání požadavku Mode code v režimu Broadcast (-)
 
 *TEST Č. X*
 

@@ -29,8 +29,8 @@ begin
             data_in => data_in, 
             data_wr => data_wr, 
             TX_en => TX_en, 
-            OUT_POSITIVE => OUT_POSITIVE, 
-            OUT_NEGATIVE => OUT_NEGATIVE, 
+            out_pos => OUT_POSITIVE, 
+            out_neg => OUT_NEGATIVE, 
             TX_DONE => TX_DONE
         );
     

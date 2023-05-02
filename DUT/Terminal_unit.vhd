@@ -31,7 +31,7 @@ architecture rtl of Terminal_unit is
         port (
             clk   : in std_logic;
             reset : in std_logic;
-            in_positive, in_negative : in std_logic;
+            in_pos, in_neg : in std_logic;
             DATA_OUT : out std_logic_vector(15 downto 0);
             RX_DONE : out std_logic_vector(1 downto 0);
             RX_flag : out std_logic
@@ -45,8 +45,8 @@ architecture rtl of Terminal_unit is
             data_in : in std_logic_vector(15 downto 0);    
             data_wr : in std_logic;                         
             TX_en : in std_logic_vector(1 downto 0);       
-            OUT_POSITIVE : out std_logic;  
-            OUT_NEGATIVE : out std_logic;
+            out_pos : out std_logic;  
+            out_neg : out std_logic;
             TX_DONE : out std_logic                        
         );
     end component;
@@ -106,8 +106,8 @@ architecture rtl of Terminal_unit is
         data_in : std_logic_vector(15 downto 0);    
         data_wr : std_logic;                         
         TX_en : std_logic_vector(1 downto 0);       
-        OUT_POSITIVE : std_logic;  
-        OUT_NEGATIVE : std_logic;
+        out_pos : std_logic;  
+        out_neg : std_logic;
         TX_DONE : std_logic;
     end record;
     signal ME_TO_FSM : t_ME_TO_FSM;
@@ -127,8 +127,8 @@ begin
         port map (
             clk   => clk,
             reset => reset,
-            in_positive => in_pos,
-            in_negative => in_neg,
+            in_pos => in_pos,
+            in_neg => in_neg,
             DATA_OUT =>  MD_TO_FSM.DATA_OUT,
             RX_DONE =>  MD_TO_FSM.RX_DONE,
             RX_flag => MD_TO_FSM.RX_flag
@@ -141,8 +141,8 @@ begin
             data_in =>  ME_TO_FSM.data_in,    
             data_wr =>  ME_TO_FSM.data_wr,                           
             TX_en =>    ME_TO_FSM.TX_en,     
-            OUT_POSITIVE =>  out_pos,  
-            OUT_NEGATIVE =>  out_neg,
+            out_pos =>  out_pos,  
+            out_neg =>  out_neg,
             TX_DONE =>       ME_TO_FSM.TX_DONE
         );
 

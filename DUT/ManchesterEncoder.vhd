@@ -12,8 +12,8 @@ entity ManchesterEncoder is
         data_in : in std_logic_vector(15 downto 0);     -- data to be sent
         data_wr : in std_logic;                         -- data to be sent are written to a register via this wr_en bit
         TX_en : in std_logic_vector(1 downto 0);        -- 01 = status word, 10 = data word -> enables transfer; "00" -> stops transfer
-        OUT_POSITIVE : out std_logic;  
-        OUT_NEGATIVE : out std_logic;
+        out_pos : out std_logic;  
+        out_neg : out std_logic;
         TX_DONE : out std_logic                         -- signalization to a terminal that transfer has been completed succesfully
     );
 end entity;
@@ -40,9 +40,9 @@ architecture rtl of ManchesterEncoder is
 
     -- DATA COUNTER
     --counts amount of sent bits
-    signal data_counter_d, data_counter_q : unsigned(4 downto 0);
-    signal data_counter_max : std_logic; -- 17-bit (data + parity)
-    signal data_counter_en : std_logic;
+    signal data_cntr_d, data_cntr_q : unsigned(4 downto 0);
+    signal data_cntr_max : std_logic; -- 17-bit (data + parity)
+    signal data_cntr_en : std_logic;
 
     -- SHIFT REGISTER
     --stores input data to be sent; when transmitting, register is shifting and current bit to be sent is at position (15)
@@ -61,14 +61,14 @@ begin
         if reset = '1' then
             state_q <= S_IDLE;
             timer_q <= (others => '0'); 
-            data_counter_q <= (others => '0') ;
+            data_cntr_q <= (others => '0') ;
             data_register_q <= (others => '0'); 
             freq_divider_q <= (others => '0');
             parity_bit_q <= '0';
         elsif rising_edge(clk) then
             state_q <= state_d;
             timer_q <= timer_d;
-            data_counter_q <= data_counter_d;
+            data_cntr_q <= data_cntr_d;
             data_register_q <= data_register_d;
             freq_divider_q <= freq_divider_d;
             parity_bit_q <= parity_bit_d;
@@ -77,13 +77,13 @@ begin
 
     -- STATE MACHINE
     --comb part
-    process (TX_en, state_q, data_counter_q, timer_sync, bus_clock, parity_bit_q, data_register_q, data_counter_max)
+    process (TX_en, state_q, data_cntr_q, timer_sync, bus_clock, parity_bit_q, data_register_q, data_cntr_max)
     begin
-        data_counter_en <= '0';
+        data_cntr_en <= '0';
         timer_en <= '0';
         freq_divider_en <= '0';
-        OUT_POSITIVE <= '0';
-        OUT_NEGATIVE <= '0';
+        out_pos <= '0';
+        out_neg <= '0';
         TX_DONE <= '0';
         state_d <= state_q;
 
@@ -97,7 +97,7 @@ begin
                 end if;
             when S_SYNC_POS =>
                 timer_en <= '1';
-                OUT_POSITIVE <= '1';
+                out_pos <= '1';
 
                 if TX_en = "01" and timer_sync = '1' then
                     state_d <= S_SYNC_NEG;
@@ -111,7 +111,7 @@ begin
                     
             when S_SYNC_NEG =>
                 timer_en <= '1';
-                OUT_NEGATIVE <= '1';
+                out_neg <= '1';
 
                 if TX_en = "10" and timer_sync = '1' then
                     state_d <= S_SYNC_POS;
@@ -124,16 +124,16 @@ begin
                 end if;
 
             when S_ENCODE =>
-                data_counter_en <= '1';
+                data_cntr_en <= '1';
                 timer_en <= '1';
                 freq_divider_en <= '1';
 
                 --manchester coding
-                OUT_POSITIVE <= not bus_clock xor data_register_q(15);
-                OUT_NEGATIVE <= (bus_clock xor data_register_q(15));
+                out_pos <= not bus_clock xor data_register_q(15);
+                out_neg <= (bus_clock xor data_register_q(15));
 
                 -- when data are sent, mark FSM_Brain that it's done & go to idle
-                if data_counter_max = '1' then
+                if data_cntr_max = '1' then
                     TX_DONE <= '1';
                     state_d <= S_IDLE;
                 end if;
@@ -143,7 +143,7 @@ begin
 
     -- TIMER
     --comb part
-    process (timer_en, timer_q, data_counter_en)
+    process (timer_en, timer_q, data_cntr_en)
     begin
         if timer_en = '1' then
             timer_d <= timer_q + 1;
@@ -160,7 +160,7 @@ begin
         end if;
 
         -- when data are being sent (data_counter_en = '1'), signalize each end of bus period
-        if timer_q = BUS_PERIOD - 1 and data_counter_en = '1' then
+        if timer_q = BUS_PERIOD - 1 and data_cntr_en = '1' then
             timer_max <= '1';
             timer_d <= (others => '0'); 
         else
@@ -172,28 +172,28 @@ begin
 
     -- DATA COUNTER
     --comb part
-    process (data_counter_q, data_counter_en, timer_max)
+    process (data_cntr_q, data_cntr_en, timer_max)
     begin
         -- each bus period (-> timer_max = '1') one bit is sent -> data_counter++
-        if data_counter_en = '1' and timer_max = '1' then
-            data_counter_d <= data_counter_q + 1;
-        elsif data_counter_en = '1' then
-            data_counter_d <= data_counter_q;
+        if data_cntr_en = '1' and timer_max = '1' then
+            data_cntr_d <= data_cntr_q + 1;
+        elsif data_cntr_en = '1' then
+            data_cntr_d <= data_cntr_q;
         else
-            data_counter_d <= (others => '0'); 
+            data_cntr_d <= (others => '0'); 
         end if;
 
         -- data + parity
-        if data_counter_q = 17 then
-            data_counter_max <= '1';
+        if data_cntr_q = 17 then
+            data_cntr_max <= '1';
         else
-            data_counter_max <= '0';
+            data_cntr_max <= '0';
         end if;
     end process;
 
     -- DATA REGISTER
     --comb part
-    process (data_wr, data_in, parity_bit_q, timer_max, data_counter_q, data_counter_en, data_register_q)
+    process (data_wr, data_in, parity_bit_q, timer_max, data_cntr_q, data_cntr_en, data_register_q)
     begin
         parity_bit_d <= parity_bit_q;
 
@@ -206,18 +206,18 @@ begin
         end if;
 
         -- when data transmitting, each bus period shift register; when sending last value (data_counter_q = 16), set parity bit to an output
-        if data_counter_en = '1' and timer_max = '1' and data_counter_q = 15 then -- last bit to be sent is parity bit
+        if data_cntr_en = '1' and timer_max = '1' and data_cntr_q = 15 then -- last bit to be sent is parity bit
             if PARITY = '1' then
                 data_register_d(15) <=  parity_bit_q xor data_register_q(15);       -- xor last sent bit with (currently calculated) parity bit, then send it
             else
                 data_register_d(15) <=  not (parity_bit_q xor data_register_q(15));
             end if;
             
-        elsif data_counter_en = '1' and timer_max = '1' then -- shift register
+        elsif data_cntr_en = '1' and timer_max = '1' then -- shift register
             data_register_d <= data_register_q(14 downto 0) & '0';
             parity_bit_d <= parity_bit_q xor data_register_q(15);
 
-        elsif data_counter_en = '0' then    -- erase parity bit for future transfers (when not transfering)
+        elsif data_cntr_en = '0' then    -- erase parity bit for future transfers (when not transfering)
             parity_bit_d <= '0';
         end if;
 
