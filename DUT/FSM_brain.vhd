@@ -77,13 +77,14 @@ architecture rtl of FSM_brain is
     signal msg_err_d, msg_err_q : std_logic;
 
     -- mode code outputs flip flops
-    signal mode_code_d, mode_code_q : std_logic_vector(4 downto 0);
+    signal mode_c_d, mode_c_q : std_logic_vector(4 downto 0);
     signal sync_d, sync_q : std_logic_vector(15 downto 0);
 
     -- INTERNAL ERROR TIMER 
     --some states shouldn't last longer than for 50 us; if that happens, there must be an error;
     signal err_tmr_d, err_tmr_q : unsigned(10 downto 0);
     signal err_tmr_max : std_logic;
+    signal err_tmr_mem : std_logic;
     signal err_tmr_en : std_logic;
 
     -- JUST FOR SIMULATION
@@ -103,7 +104,7 @@ begin
             cntr_q <= (others => '0') ;
             err_tmr_q <= (others => '0'); 
             msg_err_q <= '0';
-            mode_code_q <= (others => '0');
+            mode_c_q <= (others => '0');
             sync_q <= (others => '0');  
 
             -- status word default set
@@ -124,22 +125,20 @@ begin
             cntr_q <= cntr_d;
             err_tmr_q <= err_tmr_d;
             msg_err_q <= msg_err_d;
-            mode_code_q <= mode_code_d;
+            mode_c_q <= mode_c_d;
             sync_q <= sync_d;
 
         end if;
     end process;
 
-    --decoder_data_in, rx_done, counter_q, error_timer_max, mem_wr_done, mem_rd_done, status_word_q, tx_done, error_timer_q, error_timer_en, subaddress_q, data_word_count_q, state_d, state_q, sram_data_in, mem_data_in, status_word_d, msg_err_q, rx_flag
-    --comb part
-    process (all)
+    process (decoder_data_in, rx_done, cntr_q, err_tmr_max, mem_wr_done, mem_rd_done, stat_w_q, tx_done, err_tmr_q, err_tmr_en, saddr_q, dw_cnt_q, state_d, state_q, sram_data_in, mem_data_in, stat_w_d, msg_err_q, rx_flag, sync_q, mode_c_q)
     begin
         state_d <= state_q;
         saddr_d <= saddr_q;
         dw_cnt_d <= dw_cnt_q;
         stat_w_d <= stat_w_q;
         cntr_d <= cntr_q;
-        mode_code_d <= mode_code_q;
+        mode_c_d <= mode_c_q;
         sync_d <= sync_q;
         
         err_tmr_en <= '0';
@@ -168,7 +167,6 @@ begin
 
                         if decoder_data_in(9 downto 5) = "00000" or decoder_data_in(9 downto 5) = "11111" then -- Mode code 
                             state_d <= S_MODE_CODE;
-                            -- TODO mode code broadcast handle !
                         
                         elsif decoder_data_in(10) = '1' then --T/R bit
                             cntr_d <= cntr_q + 1;
@@ -196,6 +194,7 @@ begin
 
             when S_DATA_RX =>   -- terminal is receiving data from decoder
                 msg_err_d <= msg_err_q;
+                err_tmr_en <= '1';
 
                 if cntr_q = dw_cnt_q then                -- expected amount of data words has been received, now save it
                     cntr_d <= cntr_q - 1;
@@ -218,7 +217,7 @@ begin
                     cntr_d <= cntr_q + 1;     -- increment amount of data words received  
                     msg_err_d <= '1';    
                     
-                elsif rx_flag = '0' or rx_done = "01" then            -- data rec ended too soon or cmd word received -> error
+                elsif (cntr_q /= 0 and rx_flag = '0') or err_tmr_max = '1' then            -- data rec ended too soon or data didnt appear in 50 us -> error
                     stat_w_d(10) <= '1';
                     state_d <= S_IDLE;
                 end if;
@@ -227,9 +226,9 @@ begin
                 mem_wr <= '1';
                 err_tmr_en <= '1';
                 
-                if err_tmr_max = '1' or RX_done /= "00" then                                        -- either write took too long or unexpected word occured -> error
+                if err_tmr_mem = '1' or RX_done /= "00" then                                        -- either write took too long or unexpected word occured -> error
                     stat_w_d(0) <= '1';                                                            -- terminal flag error -> '1'
-                    state_d <= S_IDLE;
+                    state_d <= S_MEM_WR_DONE;                                                       -- send status word about an error
 
                 elsif (cntr_q /= 0 and mem_wr_done = '1') then                                       -- send all data in internal cache (-> while counter != 0, keep sending)
                     mem_wr <= '0';  
@@ -273,7 +272,7 @@ begin
                 err_tmr_en <= '1';
                 sram_data_out <= mem_data_in;
                 
-                if err_tmr_max = '1' then                                               -- write took too long, there must be an error
+                if err_tmr_mem = '1' then                                               -- write took too long, there must be an error
                     stat_w_d(0) <= '1';                                                -- set status word error flag to '1'
                     state_d <= S_MEM_RD_DONE;
                 
@@ -309,10 +308,12 @@ begin
                 
                 if tx_done = '1' and  stat_w_d(0) = '1' then               -- TX of SW is done; if an error ocurred during memory read, go to idle
                     state_d <= S_IDLE;
+                    stat_w_d(10 downto 0) <= (others => '0');      -- reset error flags (they have already been sent)
 
                 elsif tx_done = '1' then                                        -- TX of SW is done; now TX loaded data
                     encoder_data_out <= sram_data_in;
                     data_wr_d <= '1';                                           -- write enable to encoder
+                    stat_w_d(10 downto 0) <= (others => '0');      -- reset error flags (they have already been sent)
 
                     state_d <= S_DATA_TX;
                 end if;
@@ -353,7 +354,7 @@ begin
                     cntr_d <= cntr_q + 1;     -- increment amount of data words received
                 end if;
             when S_MODE_CODE =>
-                mode_code_d <= std_logic_vector(dw_cnt_q);
+                mode_c_d <= std_logic_vector(dw_cnt_q);
 
                 if dw_cnt_q = "10001" then                         -- MC synchronize (with data word)
                     err_tmr_en <= '1';
@@ -375,7 +376,7 @@ begin
                 end if;
 
             when S_MC_BROADCAST =>
-                mode_code_d <= std_logic_vector(dw_cnt_q);
+                mode_c_d <= std_logic_vector(dw_cnt_q);
 
                 if dw_cnt_q = "10001" then                         -- MC synchronize (with data word)
                     err_tmr_en <= '1';
@@ -401,7 +402,7 @@ begin
     -- output signals taken from flip flops
     encoder_data_wr <= data_wr_q;
     mem_subaddr <= saddr_q;
-    mode_code <= mode_code_q;
+    mode_code <= mode_c_q;
     synchronize <= sync_q;
 
     -- ERROR TIMER (9-bit)
@@ -418,6 +419,12 @@ begin
             err_tmr_max <= '1';
         else
             err_tmr_max <= '0';
+        end if;
+
+        if err_tmr_q = 96-1 then -- 3 us
+            err_tmr_mem <= '1';
+        else
+            err_tmr_mem <= '0';
         end if;
     end process;
 
