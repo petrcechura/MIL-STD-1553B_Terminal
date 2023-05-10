@@ -26,6 +26,9 @@ architecture rtl of Enviroment is
     signal com : t_bfm_com;
     signal response : std_logic := '0';
 
+    -- validity of memory
+    signal memory_func : boolean := true;
+
 begin
 
     --*********************************--
@@ -68,7 +71,8 @@ begin
             read_done => MEM_TO_TU.rd_done,
             data_in => MEM_TO_TU.data_out,
             data_out => MEM_TO_TU.data_in,
-            subaddress => MEM_TO_TU.subaddr
+            subaddress => MEM_TO_TU.subaddr,
+            memory_func => memory_func
         );
 
     BFM_DECODER_I: entity work.ManchesterDecoder(rtl)
@@ -92,7 +96,7 @@ begin
 
 
     MAIN: process
-        variable TEST_NUMBER : integer := 2;
+        variable TEST_NUMBER : integer := 10;
 
         -- COMMAND WORD SETTINGS
         variable address : unsigned(4 downto 0) := "11011";
@@ -536,7 +540,34 @@ begin
                     data_word_count := "10010";
                     wait for 1 ns;
                     Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
-                     
+
+                elsif TEST_NUMBER = 10 then
+                    -- set memory to invalid state (1)
+                    memory_func <= false;
+
+                    -- terminal reset (2)
+                    rst <= '1';
+                    wait for 2 us;
+                    rst <= '0';
+                    wait for 2 us;
+
+                    -- send command word    (3)
+                    address := TERMINAL_ADDRESS;
+                    TR_bit := '0';
+                    data_word_count := "00111";
+                    subaddress := "11100";
+                    wait for 1 ns;
+                    Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+
+                    -- send data words  (4)
+                    bits := "0000000000000001";
+                    for i in 0 to to_integer(data_word_count)-1 loop
+                        bits := bits + 1;
+                        Send_data_word(bits, com, response);
+                    end loop;
+                    
+                    -- receive status word  (5)
+                    Receive_word(com, response);
         end if;
         
 

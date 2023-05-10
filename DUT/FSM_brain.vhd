@@ -131,7 +131,7 @@ begin
         end if;
     end process;
 
-    process (decoder_data_in, rx_done, cntr_q, err_tmr_max, mem_wr_done, mem_rd_done, stat_w_q, tx_done, err_tmr_q, err_tmr_en, saddr_q, dw_cnt_q, state_d, state_q, sram_data_in, mem_data_in, stat_w_d, msg_err_q, rx_flag, sync_q, mode_c_q)
+    process (decoder_data_in, rx_done, cntr_q, err_tmr_max, mem_wr_done, mem_rd_done, stat_w_q, tx_done, err_tmr_q, err_tmr_en, saddr_q, dw_cnt_q, state_d, state_q, sram_data_in, mem_data_in, stat_w_d, msg_err_q, rx_flag, sync_q, mode_c_q, err_tmr_mem)
     begin
         state_d <= state_q;
         saddr_d <= saddr_q;

@@ -8,8 +8,8 @@ POŽADAVKY NA TERMINÁL
 ROZEPSANÉ POŽADAVKY NA TERMINÁL (Náměty na testy)
 * Frekvence FPGA: 32 MHz
 * Frekvence linky: 1 MHz
-* Rozpoznání synchronizační vlny a správné dekódování signálu Manchester
-* Odesílání signálu podle standardu MIL-STD-1553B (synchronize + manchester)
+* Rozpoznání synchronizační vlny a správné dekódování signálu s Manchester kódováním
+* Odesílání dat podle standardu MIL-STD-1553B (synchronizační vlna + manchester kódování)
 * Přijmout data od řadiče a uložit je do určeného subsystému dle standardu MIL-STD-1553B
 * Přijmout požadavek na odeslání dat z příslušného subsystému a provést jej dle standardu MIL-STD-1553B
 * Rozpoznat chybu v přenosu bitů a adekvátně na ni reagovat (stavové slovo)
@@ -37,6 +37,7 @@ T/R = Transmit/Receive bit ('1' = transmit)
 *není-li uvedena -> ADRESA TERMINÁLU
 
 *TEST Č. 1*	-- HOTOVO
+Odeslání datových slov
 
 ÚČEL:
 Ověřit schopnost terminálu vyhodnotit požadavek na příjem a odeslání dat ze subsystému bez chyb.
@@ -54,7 +55,7 @@ POPIS TESTU:
 
 
 *TEST Č. 2*	-- HOTOVO
-
+Chyba na lince (v příkazovém slově)
 ÚČEL:
 Ověřit schopnost terminálu adekvátně reagovat na chybu na lince (špatná parita, špatné kódování, bez synchronizace) při odesílání příkazového slova. Reakce je uložení chyby do SW, ale bez jeho automatického odeslání. Odeslání je vynuceno formou Mode Code. 
 POPIS TESTU:
@@ -70,7 +71,7 @@ POPIS TESTU:
 
 
 *TEST Č. 3*	-- HOTOVO
-
+Chyba na lince (v datovém slově)
 ÚČEL:
 Ověřit schopnost terminálu adekvátně reagovat na chybu na lince (špatná parita, špatné kódování, bez synchronizace) při odesílání datového slova. Reakce je po obdržení všech zpráv neuložení do paměti a odeslání stavového slova s informací o chybě.
 POPIS TESTU:
@@ -85,7 +86,7 @@ POPIS TESTU:
 9) Přijetí stavového slova
 
 *TEST Č. 4*	-- HOTOVO
-
+Chyba na lince (méně datových slov)
 ÚČEL:
 Ověřit schopnost terminálu reagovat na přijetí méně datových slov, než bylo očekáváno.
 POPIS TESTU:
@@ -97,9 +98,9 @@ POPIS TESTU:
 9) Přijetí stavového slova
 
 *TEST Č. 5*	-- HOTOVO
-Ověřit schopnost terminálu reagovat na Mode Code požadavky (včetně vystavení Mode code slova na výstup) podle MIL-STD-1553B. Po každém Mode code je přijato stavové slovo. Při MC "Transmit status word" odeslané stavové slovo v terminálu zůstává stejné (neresetuje se -> MIL-STD-1553B)
+Mode code požadavek
 ÚČEL:
-
+Ověřit schopnost terminálu reagovat na Mode Code požadavky (včetně vystavení Mode code slova na výstup) podle MIL-STD-1553B. Po každém Mode code je přijato stavové slovo. Při MC "Transmit status word" odeslané stavové slovo v terminálu zůstává stejné (neresetuje se -> MIL-STD-1553B)
 POPIS TESTU:
 1) Reset terminálu
 2) Odeslání neplatného požadavku Mode Code
@@ -113,7 +114,7 @@ POPIS TESTU:
 
 
 *TEST Č. 6*	-- HOTOVO
-
+Příjem dat z řadiče v režimu Broadcast
 ÚČEL:
 Ověřit schopnost terminálu reagovat na broadcast požadavek k přijetí dat. Reakce je bez odeslání stavového slova.
 POPIS TESTU:
@@ -125,7 +126,7 @@ POPIS TESTU:
 6) Přijetí čtyř datových slov.
 
 *TEST Č. 7*	-- HOTOVO
-
+Odeslání dat v režimu Broadcast
 ÚČEL:
 Ověřit schopnost terminálu reagovat na broadcast požadavek k odeslání dat do ostatních terminálů.
 POPIS TESTU:
@@ -136,7 +137,7 @@ POPIS TESTU:
 5) Přijetí čtyř datových slov
 
 *TEST Č. 8*	-- HOTOVO
-
+Příjem dat z jiného terminálu v režimu Broadcast
 ÚČEL:
 Ověřit schopnost terminálu reagovat na broadcast požadavek k přijetí dat z jiného terminálu.
 POPIS TESTU:
@@ -149,7 +150,7 @@ POPIS TESTU:
 7) Přijetí pěti datových slov
 
 *TEST Č. 9*	-- HOTOVO
-
+Mode code požadavek v režimu Broadcast
 ÚČEL:
 Ověřit schopnost terminálu reagovat na broadcast mode code požadavek, tj. vystavit slovo na výstup a v případě synchronizace ji vystavit na výstup.
 POPIS TESTU:
@@ -158,21 +159,16 @@ POPIS TESTU:
 3) Odeslání datového slova
 4) Odeslání požadavku Mode code v režimu Broadcast (-)
 
-*TEST Č. X*
-
+*TEST Č. 10*
+Chyba v terminálu
 ÚČEL:
-
+Ověřit schopnost terminálu reagovat na chybu v terminálu (nesprávná komunikace se subsystémem), tj. odeslat stavové slovo s danou chybou
 POPIS TESTU:
-1) Reset terminálu
-2) 
-3) 
-4) 
-5) 
-6)
-7)
-8)
-9)
-10)
+1) Nastavení signálu MEMORY_FUNC na false
+2) Reset terminálu
+2) Odeslání příkazového slova (T/R = '0', DC = 7, SA = "11100")
+3) Odeslání sedmi datových slov (s inkrementující hodnotou)
+4) Přijetí stavového slova
 
 *TEST Č. X*
 

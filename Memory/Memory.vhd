@@ -16,7 +16,9 @@ entity Memory is
         read_done : out std_logic;
         data_in : in std_logic_vector(15 downto 0);
         data_out : out std_logic_vector(15 downto 0);
-        subaddress : in std_logic_vector(4 downto 0)
+        subaddress : in std_logic_vector(4 downto 0);
+
+        MEMORY_FUNC : in boolean
     );
 end entity;
 
@@ -31,7 +33,7 @@ architecture rtl of Memory is
     
     signal data_out_d, data_out_q : std_logic_vector(15 downto 0);
 
-    -- Flip flop of sending short signal to a terminal that data handling is completed
+    -- Flip flop of sending short signal to a terminal that data read/write is completed
     signal wr_done_d, wr_done_q : std_logic;
     signal rd_done_d, rd_done_q : std_logic;
 
@@ -40,7 +42,7 @@ begin
     
     process (clk, reset)
     begin
-        if reset = '1' then
+        if reset = '1' and MEMORY_FUNC = true then
             memory_arr_q <= (others => (others => '0') );   -- clear whole memory
             wr_done_q <= '0';
             rd_done_q <= '0';
@@ -61,10 +63,10 @@ begin
         memory_arr_d <= memory_arr_q;
         data_out_d <= data_out_q;
 
-        if write_en = '1' then
+        if write_en = '1' and MEMORY_FUNC = true then
             memory_arr_d(to_integer(unsigned(subaddress))) <= data_in & memory_arr_q(to_integer(unsigned(subaddress)))(511 downto 16);                     -- shift register; input data are set to the front; end of stack is erased
             wr_done_d <= '1';
-        elsif read_en = '1' then    
+        elsif read_en = '1' and MEMORY_FUNC = true then    
             data_out_d <= memory_arr_q(to_integer(unsigned(subaddress)))(511 downto 511-15);            -- data are gathered from a front of shift register                           
             memory_arr_d(to_integer(unsigned(subaddress))) <= memory_arr_q(to_integer(unsigned(subaddress)))(511-16 downto 0) & "0000000000000000" ;       -- gathered data are erased (shift register)
             rd_done_d <= '1';
