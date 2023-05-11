@@ -34,7 +34,7 @@ begin
     --*********************************--
     --******ENTITY INITIALIZATION******--
     --*********************************--
-    BFM_I: entity work.BFM(rtl)
+    BFM_I: entity work.BFM(behavior)
         port map (
             pos_data_out => TU_TO_BFM.in_pos,
             neg_data_out => TU_TO_BFM.in_neg,

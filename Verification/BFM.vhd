@@ -22,7 +22,7 @@ entity BFM is
     );
 end entity;
 
-architecture rtl of BFM is
+architecture behavior of BFM is
     signal cmd_word : std_logic := '1';
     signal data_word : std_logic := '0';
 

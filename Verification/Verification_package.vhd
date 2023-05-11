@@ -52,7 +52,8 @@ package verification_package is
         -- 1 = Command word (synchronize + word)
         -- 2 = Data word (synchronize + word)
         -- 3 = Word without synchronize
-        -- 4 = Invalid word (synchronize + short word)
+        -- 4 = Invalid command word
+        -- 5 = Invalid data word 
         -- 7 = Receive word (print to console)
     
     --************************************************--
