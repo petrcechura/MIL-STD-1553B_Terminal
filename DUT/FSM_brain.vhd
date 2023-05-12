@@ -218,6 +218,7 @@ begin
                     msg_err_d <= '1';    
                     
                 elsif (cntr_q /= 0 and rx_flag = '0') or err_tmr_max = '1' then            -- data rec ended too soon or data didnt appear in 50 us -> error
+                    sram_erase <= '1';
                     stat_w_d(10) <= '1';
                     state_d <= S_IDLE;
                 end if;

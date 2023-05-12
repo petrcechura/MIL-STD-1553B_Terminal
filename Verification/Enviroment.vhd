@@ -274,7 +274,7 @@ begin
 
             wait for 35 us;
 
-            -- send command word    (6)
+            -- send command word    (5)
             address := TERMINAL_ADDRESS;
             TR_bit := '0';
             data_word_count := "01100";
@@ -282,14 +282,14 @@ begin
             wait for 1 ns;
             Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
 
-            -- send invalid data words    (7)
+            -- send invalid data words    (6)
             bits := "0000000000000001";
             for i in 0 to to_integer(data_word_count)-1 loop
                 bits := bits + 1;
                 Send_invalid_data_word(bits, 17, true, false, com, response);
             end loop;
 
-            -- send command word-MODECODE    (8)
+            -- send command word-MODECODE    (7)
             address := TERMINAL_ADDRESS;
             TR_bit := '0';
             subaddress := MODECODE_SUBADDR;
@@ -297,7 +297,7 @@ begin
             wait for 1 ns;
             Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
 
-            -- receive status word  (9)
+            -- receive status word  (8)
             Receive_word(com, response);
 
         elsif TEST_NUMBER = 4 then
