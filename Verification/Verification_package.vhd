@@ -186,9 +186,9 @@ package body Verification_package is
         wait for 1 ns;
 
         --START TEST
-        report "SENDING INVALID COMMAND WORD... (" & to_string(bits) & ")";
-        report "...with bits length: " & to_string(data_length);
-        report "... and parity is: "  & to_string(parity_bit);
+        report "SENDING INVALID COMMAND WORD... (";-- & to_string(bits) & ")";
+        report "...with bits length: ";-- & to_string(data_length);
+        report "... and parity is: ";--  & to_string(parity_bit);
         to_bfm.start <= '1';
         wait for 1 ns;
         to_bfm.start <= '0';
@@ -221,9 +221,9 @@ package body Verification_package is
         wait for 1 ns;
 
         --START TEST
-        report "SENDING INVALID DATA WORD... (" & to_string(bits) & ")";
-        report "...with bits length: " & to_string(data_length);
-        report "... and parity is: "  & to_string(parity_bit);
+        report "SENDING INVALID DATA WORD... (";-- & to_string(bits) & ")";
+        report "...with bits length: ";-- & to_string(data_length);
+        report "... and parity is: ";--  & to_string(parity_bit);
         to_bfm.start <= '1';
         wait for 1 ns;
         to_bfm.start <= '0';
