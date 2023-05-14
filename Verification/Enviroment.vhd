@@ -96,7 +96,7 @@ begin
 
 
     MAIN: process
-        variable TEST_NUMBER : integer := 10;
+        variable TEST_NUMBER : integer := 1;
 
         -- COMMAND WORD SETTINGS
         variable address : unsigned(4 downto 0) := "11011";
@@ -161,7 +161,7 @@ begin
             -- send command word    (8)
             address := TERMINAL_ADDRESS;
             TR_bit := '1';
-            data_word_count := "00110";
+            data_word_count := "00011";
             subaddress := "11100";
             wait for 1 ns;
             Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);   
@@ -244,7 +244,7 @@ begin
                         
             -- receive status word  (9)
             Receive_word(com, response);
-
+            report "TEST NO. 2 DONE";
 
         elsif TEST_NUMBER = 3 then 
             report "TEST NO. 3";
@@ -299,9 +299,10 @@ begin
 
             -- receive status word  (8)
             Receive_word(com, response);
+            report "TEST NO. 3 DONE";
 
         elsif TEST_NUMBER = 4 then
-            report "TEST NO. 3";
+            report "TEST NO. 4";
             -- terminal reset (1)
             rst <= '1';
             wait for 2 us;
@@ -335,7 +336,8 @@ begin
             Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
                         
             -- receive status word  (6)
-            Receive_word(com, response);            
+            Receive_word(com, response);    
+            report "TEST NO. 4 DONE";        
 
             elsif TEST_NUMBER = 5 then      
                 report "TEST NO. 5";
@@ -390,7 +392,8 @@ begin
                 Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
                 
                 -- receive status word  (9)
-                Receive_word(com, response);                
+                Receive_word(com, response);    
+                report "TEST NO. 5 DONE";            
 
             elsif TEST_NUMBER = 6 then
                 report "TEST NO. 6";
@@ -404,7 +407,7 @@ begin
                 address := unsigned(BROADCAST_ADDR);
                 TR_bit := '0';
                 subaddress := "10001";
-                data_word_count := "00010";
+                data_word_count := "00100";
                 wait for 1 ns;
                 Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
     
@@ -421,7 +424,7 @@ begin
                 address := TERMINAL_ADDRESS;
                 TR_bit := '1';
                 subaddress := "10001";
-                data_word_count := "00001";
+                data_word_count := "00100";
                 wait for 1 ns;
                 Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);   
                     
@@ -432,6 +435,7 @@ begin
                 for i in 0 to to_integer(data_word_count)-1 loop
                     Receive_word(com, response);
                 end loop;                
+                report "TEST NO. 6 DONE";
         
                 elsif TEST_NUMBER = 7 then
                     report "TEST NO. 7";
@@ -464,9 +468,11 @@ begin
                     for i in 0 to to_integer(data_word_count)-1 loop
                         Receive_word(com, response);
                     end loop;  
+                    report "TEST NO. 7 DONE";
                         
                         
                 elsif TEST_NUMBER = 8 then
+                    report "TEST NO. 8";
                     -- terminal reset (1)
                     rst <= '1';
                     wait for 2 us;
@@ -513,8 +519,10 @@ begin
                     for i in 0 to to_integer(data_word_count)-1 loop
                         Receive_word(com, response);
                     end loop;
+                    report "TEST NO. 8 DONE";
 
                 elsif TEST_NUMBER = 9 then
+                    report "TEST NO. 9";
                     -- terminal reset (1)
                     rst <= '1';
                     wait for 2 us;
@@ -540,8 +548,10 @@ begin
                     data_word_count := "10010";
                     wait for 1 ns;
                     Send_command_word(address, TR_bit, subaddress, data_word_count, com, response);
+                    report "TEST NO. 9 DONE";
 
                 elsif TEST_NUMBER = 10 then
+                    report "TEST NO. 10";
                     -- set memory to invalid state (1)
                     memory_func <= false;
 
@@ -568,6 +578,7 @@ begin
                     
                     -- receive status word  (5)
                     Receive_word(com, response);
+                    report "TEST NO. 10 DONE";
         end if;
         
 

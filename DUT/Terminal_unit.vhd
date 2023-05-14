@@ -87,13 +87,21 @@ architecture rtl of Terminal_unit is
             wr_data : in std_logic_vector(16 - 1 downto 0);
             erase_data : in std_logic;
             rd_en : in std_logic;
-            rd_data : out std_logic_vector(16 - 1 downto 0);
-            empty : out std_logic;
-            full : out std_logic;
-            data_count : out std_logic_vector(4 downto 0)
-            
+            rd_data : out std_logic_vector(16 - 1 downto 0)
         );
     end component;
+
+    component DFF is
+        port (
+            clk   : in std_logic;
+            reset : in std_logic;
+            input : in std_logic;
+            output : out std_logic
+        );
+    end component;
+
+
+
 
     type t_MD_TO_FSM is record
         DATA_OUT :  std_logic_vector(15 downto 0);
@@ -121,14 +129,20 @@ architecture rtl of Terminal_unit is
     end record;
     signal FSM_TO_SRAM : t_FSM_TO_SRAM;
 
+    -- DFF routing signals
+    signal dff_sig_in_pos : std_logic;
+    signal dff_sig_in_neg : std_logic;
+    signal dff_sig_out_pos : std_logic;
+    signal dff_sig_out_neg : std_logic;
+
 begin
 
     MD: ManchesterDecoder
         port map (
             clk   => clk,
             reset => reset,
-            in_pos => in_pos,
-            in_neg => in_neg,
+            in_pos => dff_sig_in_pos,
+            in_neg => dff_sig_in_neg,
             DATA_OUT =>  MD_TO_FSM.DATA_OUT,
             RX_DONE =>  MD_TO_FSM.RX_DONE,
             RX_flag => MD_TO_FSM.RX_flag
@@ -141,8 +155,8 @@ begin
             data_in =>  ME_TO_FSM.data_in,    
             data_wr =>  ME_TO_FSM.data_wr,                           
             TX_en =>    ME_TO_FSM.TX_en,     
-            out_pos =>  out_pos,  
-            out_neg =>  out_neg,
+            out_pos =>  dff_sig_out_pos,  
+            out_neg =>  dff_sig_out_neg,
             TX_DONE =>       ME_TO_FSM.TX_DONE
         );
 
@@ -186,10 +200,41 @@ begin
             wr_data => FSM_TO_SRAM.sram_data_out,
             rd_en => FSM_TO_SRAM.sram_rd,
             rd_data => FSM_TO_SRAM.sram_data_in,
-            erase_data => FSM_TO_SRAM.sram_erase,
-            empty => open,
-            full => open,
-            data_count => open
+            erase_data => FSM_TO_SRAM.sram_erase
+        );
+
+
+
+
+
+    DFF_in_pos: DFF
+        port map (
+            clk   => clk,
+            reset => reset,
+            input => in_pos,
+            output => dff_sig_in_pos
+        );
+
+    DFF_in_neg: DFF
+        port map (
+            clk   => clk,
+            reset => reset,
+            input => in_neg,
+            output => dff_sig_in_neg
+        );
+    DFF_out_pos: DFF
+        port map (
+            clk   => clk,
+            reset => reset,
+            input => dff_sig_out_pos,
+            output => out_pos
+        );
+    DFF_out_neg: DFF
+        port map (
+            clk   => clk,
+            reset => reset,
+            input => dff_sig_out_neg,
+            output => out_neg
         );
 
 end architecture;

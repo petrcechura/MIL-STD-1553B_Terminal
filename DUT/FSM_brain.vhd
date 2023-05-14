@@ -65,7 +65,11 @@ architecture rtl of FSM_brain is
     signal dw_cnt_d, dw_cnt_q : unsigned(4 downto 0); -- also carries mode code
 
     -- STATUS WORD 
-    signal stat_w_d, stat_w_q : unsigned(15 downto 0);
+    signal sw_msg_err_d, sw_msg_err_q : std_logic;
+    signal sw_term_err_d, sw_term_err_q : std_logic;
+    signal sw_brdcast_d, sw_brdcast_q : std_logic;
+    signal stat_w : unsigned(15 downto 0);
+
 
     -- STATE MACHINE CONTROLL
     signal data_wr_d, data_wr_q : std_logic;
@@ -81,10 +85,9 @@ architecture rtl of FSM_brain is
     signal sync_d, sync_q : std_logic_vector(15 downto 0);
 
     -- INTERNAL ERROR TIMER 
-    --some states shouldn't last longer than for 50 us; if that happens, there must be an error;
     signal err_tmr_d, err_tmr_q : unsigned(10 downto 0);
-    signal err_tmr_max : std_logic;
-    signal err_tmr_mem : std_logic;
+    signal err_tmr_max : std_logic;     -- 50 us; maximum time for bus controller to send another message (in some cases)
+    signal err_tmr_mem : std_logic;     -- 3 us; maximum time for memory response
     signal err_tmr_en : std_logic;
 
     -- JUST FOR SIMULATION
@@ -106,40 +109,41 @@ begin
             msg_err_q <= '0';
             mode_c_q <= (others => '0');
             sync_q <= (others => '0');  
-
-            -- status word default set
-            stat_w_q(15 downto 11) <= TERMINAL_ADDRESS;    -- terminal address set     
-            stat_w_q(10) <= '0';                           -- message error flag       (received data are invalid; rx_done = "11")
-            stat_w_q(9 downto 8) <= (others => '0') ;      -- unused bits
-            stat_w_q(7 downto 5) <= (others => '0') ;      -- "reserved" bits
-            stat_w_q(4) <= '0';                            -- broadcast flag           (previous communication was done via broadcast option)
-            stat_w_q(3 downto 1) <= (others => '0');       -- unused bits               
-            stat_w_q(0) <= '0';                            -- terminal error flag      (error timer overflow)                
+            
+            -- status word reset
+            sw_brdcast_q <= '0';
+            sw_msg_err_q <= '0';
+            sw_term_err_q <= '0';
 
         elsif rising_edge(clk) then
             state_q <= state_d;
             saddr_q <= saddr_d;
             dw_cnt_q <= dw_cnt_d;
-            stat_w_q <= stat_w_d;
             data_wr_q <= data_wr_d;
             cntr_q <= cntr_d;
             err_tmr_q <= err_tmr_d;
             msg_err_q <= msg_err_d;
             mode_c_q <= mode_c_d;
             sync_q <= sync_d;
+            sw_brdcast_q <= sw_brdcast_d;
+            sw_msg_err_q <= sw_msg_err_d;
+            sw_term_err_q <= sw_term_err_d;            
 
         end if;
     end process;
 
-    process (decoder_data_in, rx_done, cntr_q, err_tmr_max, mem_wr_done, mem_rd_done, stat_w_q, tx_done, err_tmr_q, err_tmr_en, saddr_q, dw_cnt_q, state_d, state_q, sram_data_in, mem_data_in, stat_w_d, msg_err_q, rx_flag, sync_q, mode_c_q, err_tmr_mem)
+    process (decoder_data_in, rx_done, cntr_q, err_tmr_max, mem_wr_done, mem_rd_done, sw_brdcast_q, sw_msg_err_q, sw_term_err_q, tx_done, err_tmr_q, err_tmr_en, saddr_q, dw_cnt_q, state_d, state_q, sram_data_in, mem_data_in, msg_err_q, rx_flag, sync_q, mode_c_q, err_tmr_mem, stat_w)
     begin
         state_d <= state_q;
         saddr_d <= saddr_q;
         dw_cnt_d <= dw_cnt_q;
-        stat_w_d <= stat_w_q;
         cntr_d <= cntr_q;
         mode_c_d <= mode_c_q;
         sync_d <= sync_q;
+        
+        sw_brdcast_d <= sw_brdcast_q;
+        sw_msg_err_d <= sw_msg_err_q;
+        sw_term_err_d <= sw_term_err_q;
         
         err_tmr_en <= '0';
         sram_erase <= '0';
@@ -160,7 +164,7 @@ begin
             when S_IDLE =>
                 if rx_done = "01" then                        -- COMMAND WORD RECEIVED
                     if decoder_data_in(15 downto 11) = std_logic_vector(terminal_address) then
-                        stat_w_d(4) <= '0';                                    -- broadcast flag is set to zero
+                        sw_brdcast_d <= '0';                                    -- broadcast flag is set to zero
                         saddr_d <= decoder_data_in(9 downto 5);                -- save subaddress 
                         dw_cnt_d <= unsigned(decoder_data_in(4 downto 0)); -- save data word count/mode code
 
@@ -175,7 +179,7 @@ begin
                             state_d <= S_DATA_RX;
                         end if;
                     elsif decoder_data_in(15 downto 11) = "00000" or decoder_data_in(15 downto 11) = "11111" then -- BROADCAST
-                        stat_w_d(4) <= '1';                                    -- broadcast flag is set
+                        sw_brdcast_d <= '1';                                  -- broadcast flag is set
                         saddr_d <= decoder_data_in(9 downto 5);                -- save subaddress    
                         dw_cnt_d <= unsigned(decoder_data_in(4 downto 0)); -- save data word count/mode code
                         
@@ -187,7 +191,7 @@ begin
                     end if;
 
                 elsif rx_done="11" then     -- ERROR WHILE COLLECTING WORD
-                    stat_w_d(10) <= '1';                                       -- message error flag -> '0'
+                    sw_msg_err_d <= '1';                                       -- message error flag -> '1'
                 end if;
 
             
@@ -199,10 +203,11 @@ begin
                 if cntr_q = dw_cnt_q then                -- expected amount of data words has been received, now save it
                     cntr_d <= cntr_q - 1;
                     if msg_err_q = '0' then
+                        sram_rd <= '1';
                         state_d <= S_MEM_WR;
-                    else                            -- if an error occured in data words (wrong parity etc, do not save data and send status word)
+                    else                            -- if an error occured in data words (wrong parity etc), do not save data and send status word
                         sram_erase <= '1';          -- data are invalid -> erase them
-                        stat_w_d(10) <= '1';        -- msg err flag    
+                        sw_msg_err_d <= '1';        -- msg err flag    
                         state_d <= S_MEM_WR_DONE;   
                     end if;
 
@@ -219,7 +224,7 @@ begin
                     
                 elsif (cntr_q /= 0 and rx_flag = '0') or err_tmr_max = '1' then            -- data rec ended too soon or data didnt appear in 50 us -> error
                     sram_erase <= '1';
-                    stat_w_d(10) <= '1';
+                    sw_msg_err_d <= '1';
                     state_d <= S_IDLE;
                 end if;
 
@@ -228,42 +233,42 @@ begin
                 err_tmr_en <= '1';
                 
                 if err_tmr_mem = '1' or RX_done /= "00" then                                        -- either write took too long or unexpected word occured -> error
-                    stat_w_d(0) <= '1';                                                            -- terminal flag error -> '1'
+                    sw_term_err_d <= '1';                                                            -- terminal flag error -> '1'
                     state_d <= S_MEM_WR_DONE;                                                       -- send status word about an error
 
-                elsif (cntr_q /= 0 and mem_wr_done = '1') then                                       -- send all data in internal cache (-> while counter != 0, keep sending)
+                elsif (cntr_q /= 0 and mem_wr_done = '1') then                                       -- send all data into a memory (-> while counter != 0, keep sending)
                     mem_wr <= '0';  
                     sram_rd <= '1';
                     cntr_d <= cntr_q - 1;                                                         -- every time write to memory was succesful, decrement counter 
                     err_tmr_en <= '0';
 
-                elsif mem_wr_done = '1' and cntr_q = 0  and stat_w_q(4) = '1' then              -- when recieving via broadcast, do not send status word
+                elsif mem_wr_done = '1' and cntr_q = 0  and sw_brdcast_q = '1' then              -- when recieving via broadcast, do not send status word
                     mem_wr <= '0';
-                    sram_rd <= '1';
                     state_d <= S_IDLE;
 
                 elsif mem_wr_done = '1' and cntr_q = 0  then                                         -- memory write completed successfuly -> status word
                     mem_wr <= '0';
-                    sram_rd <= '1';
-                    stat_w_d(10) <= '0';                                                           -- msg error -> '0'
+                    sw_msg_err_d <= '0';                                                           -- msg error -> '0'
 
                     state_d <= S_MEM_WR_DONE;
                 end if;
 
             when S_MEM_WR_DONE =>                                       -- status word is set
                 -- set status word
-                encoder_data_out <= std_logic_vector(stat_w_q);
+                encoder_data_out <= std_logic_vector(stat_w);
                 data_wr_d <= '1';
                 state_d <= S_STAT_WRD_TX;
                 
             when S_STAT_WRD_TX =>                                       -- transmitting status word                                
                 TX_enable <= "01";
-                encoder_data_out <= std_logic_vector(stat_w_q);
+                encoder_data_out <= std_logic_vector(stat_w);
                 if tx_done = '1' then                                   -- when transmitting is done, go to IDLE state
                     if decoder_data_in(9 downto 5) = "00000" and dw_cnt_q = MC_SEND_SW then   -- for MC_SEND_SW, status word shall not be reset after transmit
                         state_d <= S_IDLE;
                     else
-                        stat_w_d(10 downto 0) <= (others => '0');      -- reset error flags (they have already been sent)
+                        sw_msg_err_d <= '0';            -- reset error flags (they have already been sent)
+                        sw_brdcast_d <= '0';
+                        sw_term_err_d <= '0';     
                         state_d <= S_IDLE;
                     end if;
                 end if;
@@ -274,24 +279,24 @@ begin
                 sram_data_out <= mem_data_in;
                 
                 if err_tmr_mem = '1' then                                               -- write took too long, there must be an error
-                    stat_w_d(0) <= '1';                                                -- set status word error flag to '1'
+                    sw_term_err_d <= '1';                                                -- set status word error flag to '1'
                     state_d <= S_MEM_RD_DONE;
                 
                 elsif mem_rd_done = '1' and cntr_q = dw_cnt_q  then             -- memory read completed successfuly -> status word
                     mem_rd <= '0';
                     sram_wr <= '1';
-                    stat_w_d(10) <= '0';    -- msg error = '0'
-                    encoder_data_out <= std_logic_vector(stat_w_q);
+                    sw_msg_err_d <= '0';    -- msg error = '0'
+                    encoder_data_out <= std_logic_vector(stat_w);
                     data_wr_d <= '1';
 
-                    if stat_w_q(4) = '1' then                                          -- if it's broadcast mode, start sending data...
+                    if sw_brdcast_q = '1' then                                               -- if it's broadcast mode, start sending data...
                         state_d <= S_DATA_TX;
                         encoder_data_out <= sram_data_in;
                         data_wr_d <= '1'; 
                     else                                                                    -- ...otherwise send status word first 
                         state_d <= S_MEM_RD_DONE;                                          
-                        stat_w_d(10) <= '0';    -- msg error = '0'
-                        encoder_data_out <= std_logic_vector(stat_w_q);
+                        sw_msg_err_d <= '0';    -- msg error = '0'
+                        encoder_data_out <= std_logic_vector(stat_w);
                         data_wr_d <= '1';
                     end if;
 
@@ -305,17 +310,21 @@ begin
     
             when S_MEM_RD_DONE =>                                               -- send status word
                 TX_enable <= "01";
-                encoder_data_out <= std_logic_vector(stat_w_q);
+                encoder_data_out <= std_logic_vector(stat_w);
                 
-                if tx_done = '1' and  stat_w_d(0) = '1' then               -- TX of SW is done; if an error ocurred during memory read, go to idle
+                if tx_done = '1' and  sw_term_err_q = '1' then               -- TX of SW is done; if an error ocurred during memory read, go to idle
                     state_d <= S_IDLE;
-                    stat_w_d(10 downto 0) <= (others => '0');      -- reset error flags (they have already been sent)
-
+                    sw_msg_err_d <= '0';                        -- reset error flags (they have already been sent)
+                    sw_brdcast_d <= '0';
+                    sw_term_err_d <= '0';     
                 elsif tx_done = '1' then                                        -- TX of SW is done; now TX loaded data
                     encoder_data_out <= sram_data_in;
                     data_wr_d <= '1';                                           -- write enable to encoder
-                    stat_w_d(10 downto 0) <= (others => '0');      -- reset error flags (they have already been sent)
+                    sw_msg_err_d <= '0';                        -- reset error flags (they have already been sent)
+                    sw_brdcast_d <= '0';
+                    sw_term_err_d <= '0';                                       
 
+                    sram_rd <= '1';
                     state_d <= S_DATA_TX;
                 end if;
 
@@ -338,7 +347,7 @@ begin
                 err_tmr_en <= '1';
 
                 if err_tmr_max = '1' then
-                    stat_w_d(10) <= '1';
+                    sw_msg_err_d <= '1';
                     state_d <= S_IDLE;
 
                 elsif RX_done = "01" and                                                        -- terminal should send data to all other terminals
@@ -351,8 +360,8 @@ begin
                 elsif RX_done = "10" then                                                       -- terminal will be recieving data to all terminals
                     state_d <= S_DATA_RX;
                     sram_wr <= '1';                 -- write to an sram
-                    err_tmr_en <= '0';          -- erase error_timer
-                    cntr_d <= cntr_q + 1;     -- increment amount of data words received
+                    err_tmr_en <= '0';              -- erase error_timer
+                    cntr_d <= cntr_q + 1;           -- increment amount of data words received
                 end if;
             when S_MODE_CODE =>
                 mode_c_d <= std_logic_vector(dw_cnt_q);
@@ -361,17 +370,17 @@ begin
                     err_tmr_en <= '1';
 
                     if err_tmr_max = '1' then                           -- no data word received
-                        stat_w_d(10) <= '1';
+                        sw_msg_err_d <= '1';
                         state_d <= S_IDLE;
                     elsif RX_DONE = "10" then                               -- data word received
                         sync_d <= decoder_data_in;
                         state_d <= S_STAT_WRD_TX;                           -- after valid synchronization -> send status word
-                        encoder_data_out <= std_logic_vector(stat_w_q);
+                        encoder_data_out <= std_logic_vector(stat_w);
                         data_wr_d <= '1';
                     end if;
 
                 else                                                        -- all other mode codes -> send status word
-                    encoder_data_out <= std_logic_vector(stat_w_q);
+                    encoder_data_out <= std_logic_vector(stat_w);
                     data_wr_d <= '1';
                     state_d <= S_STAT_WRD_TX;
                 end if;
@@ -383,7 +392,7 @@ begin
                     err_tmr_en <= '1';
 
                     if err_tmr_max = '1' then                           -- no data word received
-                        stat_w_d(10) <= '1';
+                        sw_msg_err_d <= '1';
                         state_d <= S_IDLE;
                     elsif RX_DONE = "10" then                               -- data word received
                         sync_d <= decoder_data_in;
@@ -391,7 +400,7 @@ begin
                     end if;
 
                 else                                                        -- all other mode codes -> go to idle
-                    encoder_data_out <= std_logic_vector(stat_w_q);
+                    encoder_data_out <= std_logic_vector(stat_w);
                     data_wr_d <= '1';
                     state_d <= S_IDLE;
                 end if;
@@ -399,12 +408,20 @@ begin
 
     end process;
 
-
     -- output signals taken from flip flops
     encoder_data_wr <= data_wr_q;
     mem_subaddr <= saddr_q;
     mode_code <= mode_c_q;
     synchronize <= sync_q;
+
+    -- STATUS WORD
+    stat_w <= TERMINAL_ADDRESS      -- terminal address set     
+            & sw_msg_err_q          -- message error flag       (received data are invalid; rx_done = "11")
+            & "00"                  -- unused bits
+            & "000"                 -- "reserved" bits
+            & sw_brdcast_q          -- broadcast flag           (previous communication was done via broadcast option)
+            & "000"                 -- unused bits  
+            & sw_term_err_q;        -- terminal error flag      (error timer overflow)                    
 
     -- ERROR TIMER (9-bit)
     --comb part

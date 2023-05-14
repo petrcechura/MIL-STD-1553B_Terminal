@@ -74,7 +74,7 @@ begin
                 wait until RX_done /= "00";
                 
                 if RX_done = "01" then
-                    report "BFM: Received Status word: ";-- & to_string(data_from_TU);
+                    report "BFM: Received Status word: " & to_string(data_from_TU);
 
                     if data_from_TU(0) = '1' then
                         report "BFM: Terminal error flag detected!";
@@ -88,7 +88,7 @@ begin
                         report "BFM: Msg error flag detected!";
                     end if;
                 elsif RX_done = "10" then
-                    report "BFM: Received Data word: ";-- & to_string(data_from_TU);
+                    report "BFM: Received Data word: " & to_string(data_from_TU);
                 else
                     report "BFM: Received !Error!";
                 end if;
