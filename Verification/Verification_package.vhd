@@ -26,11 +26,11 @@ package verification_package is
 
     type t_TU_TO_BFM is record
         -- BFM -> unit
-        in_pos : std_logic;
-        in_neg : std_logic;
+        RX_pos : std_logic;
+        RX_neg : std_logic;
         -- unit -> BFM
-        out_pos : std_logic;
-        out_neg : std_logic;
+        TX_pos : std_logic;
+        TX_neg : std_logic;
     end record;
 
     type t_DEC_TO_BFM is record

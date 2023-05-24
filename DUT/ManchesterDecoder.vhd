@@ -35,7 +35,7 @@ entity ManchesterDecoder is
     port (
         clk   : in std_logic;
         reset : in std_logic;
-        in_pos, in_neg : in std_logic;
+        RX_pos, RX_neg : in std_logic;
         DATA_OUT : out std_logic_vector(15 downto 0);
         RX_DONE : out std_logic_vector(1 downto 0);
         RX_flag : out std_logic
@@ -100,7 +100,7 @@ begin
     --seq part
     process (clk, reset)
     begin
-        if reset='1' then
+        if reset = '1' then
             state_q <= S_IDLE;
             sync_type_q <= '0';
             sync_tmr_q <= (others => '0'); 
@@ -122,7 +122,7 @@ begin
     end process;
 
     --comb part
-    process (state_q, in_pos, in_neg, sync_tmr_max, sync_tmr_mid, data_cntr_max, sync_type_q, decoded_data, data_error, err_tmr_max, parity_bit_q)
+    process (state_q, RX_pos, RX_neg, sync_tmr_max, sync_tmr_mid, data_cntr_max, sync_type_q, decoded_data, data_error, err_tmr_max, parity_bit_q)
     begin
         sync_tmr_en <= '0';
         sync_tmr_mid_en <= '0';
@@ -140,9 +140,9 @@ begin
             when S_IDLE =>
                 RX_flag <= '0';
                 
-                if in_pos = '1' and in_neg = '0' then
+                if RX_pos = '1' and RX_neg = '0' then
                     state_d <= S_CMD_SYNC_1;
-                elsif in_neg = '1' and in_pos = '0' then
+                elsif RX_neg = '1' and RX_pos = '0' then
                     state_d <= S_DATA_SYNC_1;
                 end if;
             when S_CMD_SYNC_1 =>
@@ -150,7 +150,7 @@ begin
 
                 if sync_tmr_max = '1' then
                     state_d <= S_CMD_SYNC_2;
-                elsif in_pos = '1' and in_neg = '0' then
+                elsif RX_pos = '1' and RX_neg = '0' then
                     state_d <= S_CMD_SYNC_1;
                 else
                     state_d <= S_IDLE;
@@ -171,7 +171,7 @@ begin
                 if sync_tmr_max='1' then
                     state_d <= S_DATA_REC;
                     sync_type_d <= '0';
-                elsif in_pos='0' and in_neg='1' then
+                elsif RX_pos='0' and RX_neg='1' then
                     state_d <= S_CMD_SYNC_3;
                 else
                     state_d <= S_IDLE;
@@ -182,7 +182,7 @@ begin
 
                 if sync_tmr_max='1' then
                     state_d <= S_DATA_SYNC_2;
-                elsif in_pos='0' and in_neg='1' then
+                elsif RX_pos='0' and RX_neg='1' then
                     state_d <= S_DATA_SYNC_1;
                 else
                     state_d <= S_IDLE;
@@ -201,7 +201,7 @@ begin
                 if sync_tmr_max='1' then
                     state_d <= S_DATA_REC;
                     sync_type_d <= '1';
-                elsif in_pos='1' and in_neg='0' then
+                elsif RX_pos='1' and RX_neg='0' then
                     state_d <= S_DATA_SYNC_3;
                 else
                     state_d <= S_IDLE;
@@ -218,9 +218,9 @@ begin
                     RX_DONE <= "01"; --command word
 
                     -- if the next message is right next to previous one, skip idle state
-                    if in_pos = '1' and in_neg = '0' then
+                    if RX_pos = '1' and RX_neg = '0' then
                         state_d <= S_CMD_SYNC_1;
-                    elsif in_neg = '1' and in_pos = '0' then
+                    elsif RX_neg = '1' and RX_pos = '0' then
                         state_d <= S_DATA_SYNC_1;
                     else
                         state_d <= S_IDLE;
@@ -231,9 +231,9 @@ begin
                     RX_DONE <= "10"; --data word
                     
                     -- if the next message is right next to previous one, skip idle state
-                    if in_pos = '1' and in_neg = '0' then
+                    if RX_pos = '1' and RX_neg = '0' then
                         state_d <= S_CMD_SYNC_1;
-                    elsif in_neg = '1' and in_pos = '0' then
+                    elsif RX_neg = '1' and RX_pos = '0' then
                         state_d <= S_DATA_SYNC_1;
                     else
                         state_d <= S_IDLE;
@@ -244,9 +244,9 @@ begin
                     RX_DONE <= "11"; --error
 
                     -- if the next message is right next to previous one, skip idle state
-                    if in_pos = '1' and in_neg = '0' then
+                    if RX_pos = '1' and RX_neg = '0' then
                         state_d <= S_CMD_SYNC_1;
-                    elsif in_neg = '1' and in_pos = '0' then
+                    elsif RX_neg = '1' and RX_pos = '0' then
                         state_d <= S_DATA_SYNC_1;
                     else
                         state_d <= S_IDLE;
@@ -263,12 +263,12 @@ begin
 
     --PARITY CALCULATION
     -- comb part
-    process (parity_bit_q, mster_tmr_sample, in_pos, in_neg, data_cntr_max, parity_bit_en, data_cntr_q)
+    process (parity_bit_q, mster_tmr_sample, RX_pos, RX_neg, data_cntr_max, parity_bit_en, data_cntr_q)
     begin
         if parity_bit_en = '1' then
-            if mster_tmr_sample = '1' and in_pos = '1' and data_cntr_q < 16 then
+            if mster_tmr_sample = '1' and RX_pos = '1' and data_cntr_q < 16 then
                 parity_bit_d <= ('1' xor parity_bit_q);
-            elsif mster_tmr_sample = '1' and in_neg = '1' and data_cntr_q < 16 then
+            elsif mster_tmr_sample = '1' and RX_neg = '1' and data_cntr_q < 16 then
                 parity_bit_d <= ('0' xor parity_bit_q);
             else
                 parity_bit_d <= parity_bit_q;
@@ -339,12 +339,12 @@ begin
         elsif rising_edge(clk) then
             if state_q = S_DATA_REC and mster_tmr_sample = '1' then
                 data_error <= '0';
-                if in_pos = '1' and in_neg = '0' then
+                if RX_pos = '1' and RX_neg = '0' then
                     for i in 0 to 15 loop
                         decoded_data(i+1) <= decoded_data(i);
                     end loop;
                         decoded_data(0) <= '1';
-                elsif in_neg = '1' and in_pos = '0' then
+                elsif RX_neg = '1' and RX_pos = '0' then
                     for i in 0 to 15 loop
                         decoded_data(i+1) <= decoded_data(i);
                     end loop;
@@ -378,15 +378,15 @@ begin
 
     -- ERROR TIMER
     --comb part
-    process (err_tmr_en, err_tmr_en, err_tmr_pos_q, err_tmr_neg_q, in_pos, in_neg)
+    process (err_tmr_en, err_tmr_en, err_tmr_pos_q, err_tmr_neg_q, RX_pos, RX_neg)
     begin
-        if err_tmr_en = '1' and in_pos = '1' then
+        if err_tmr_en = '1' and RX_pos = '1' then
             err_tmr_pos_d <= err_tmr_pos_q + 1;
         else
             err_tmr_pos_d <= (others => '0');
         end if;
 
-        if err_tmr_en = '1' and in_neg = '1' then
+        if err_tmr_en = '1' and RX_neg = '1' then
             err_tmr_neg_d <= err_tmr_neg_q + 1;
         else
             err_tmr_neg_d <= (others => '0');
@@ -400,7 +400,7 @@ begin
 
     end process;
 
-    --SIMULATION
+    --Necessary part for simulation via GHDL tool (that I was using)
     state_d_show <= "000" when state_d = S_IDLE else
                     "001" when state_d = S_CMD_SYNC_1 else
                     "010" when state_d = S_CMD_SYNC_2 else
@@ -409,7 +409,7 @@ begin
                     "101" when state_d = S_DATA_SYNC_2 else
                     "110" when state_d = S_DATA_SYNC_3 else
                     "111" when state_d = S_DATA_REC;
- 
+    
     state_q_show <= "000" when state_q = S_IDLE else
                     "001" when state_q = S_CMD_SYNC_1 else
                     "010" when state_q = S_CMD_SYNC_2 else

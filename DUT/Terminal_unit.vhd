@@ -10,16 +10,16 @@ entity Terminal_unit is
     port (
         clk   : in std_logic;
         reset : in std_logic;
-        in_pos, in_neg : in std_logic;
-        out_pos, out_neg : out std_logic;
+        RX_pos, RX_neg : in std_logic;
+        TX_pos, TX_neg : out std_logic;
         mem_wr_en, mem_rd_en : out std_logic;
         mem_wr_done, mem_rd_done : in std_logic;
         mem_subaddr : out std_logic_vector(4 downto 0);
         data_in : in std_logic_vector(15 downto 0);
         data_out : out std_logic_vector(15 downto 0);
         mode_code : out std_logic_vector(4 downto 0);
-        synchronize : out std_logic_vector(15 downto 0)
-
+        synchronize : out std_logic_vector(15 downto 0);
+        TR_output : out std_logic
     );
 end entity;
 
@@ -31,7 +31,7 @@ architecture rtl of Terminal_unit is
         port (
             clk   : in std_logic;
             reset : in std_logic;
-            in_pos, in_neg : in std_logic;
+            RX_pos, RX_neg : in std_logic;
             DATA_OUT : out std_logic_vector(15 downto 0);
             RX_DONE : out std_logic_vector(1 downto 0);
             RX_flag : out std_logic
@@ -45,8 +45,8 @@ architecture rtl of Terminal_unit is
             data_in : in std_logic_vector(15 downto 0);    
             data_wr : in std_logic;                         
             TX_en : in std_logic_vector(1 downto 0);       
-            out_pos : out std_logic;  
-            out_neg : out std_logic;
+            TX_pos : out std_logic;  
+            TX_neg : out std_logic;
             TX_DONE : out std_logic                        
         );
     end component;
@@ -75,7 +75,8 @@ architecture rtl of Terminal_unit is
             sram_rd : out std_logic;
             sram_erase : out std_logic;
             mode_code : out std_logic_vector(4 downto 0);
-            synchronize : out std_logic_vector(15 downto 0)
+            synchronize : out std_logic_vector(15 downto 0);
+            TR_output : out std_logic
         );
     end component;
 
@@ -114,8 +115,6 @@ architecture rtl of Terminal_unit is
         data_in : std_logic_vector(15 downto 0);    
         data_wr : std_logic;                         
         TX_en : std_logic_vector(1 downto 0);       
-        out_pos : std_logic;  
-        out_neg : std_logic;
         TX_DONE : std_logic;
     end record;
     signal ME_TO_FSM : t_ME_TO_FSM;
@@ -130,10 +129,8 @@ architecture rtl of Terminal_unit is
     signal FSM_TO_SRAM : t_FSM_TO_SRAM;
 
     -- DFF routing signals
-    signal dff_sig_in_pos : std_logic;
-    signal dff_sig_in_neg : std_logic;
-    signal dff_sig_out_pos : std_logic;
-    signal dff_sig_out_neg : std_logic;
+    signal dff_sig_RX_pos : std_logic;
+    signal dff_sig_RX_neg : std_logic;
 
 begin
 
@@ -141,8 +138,8 @@ begin
         port map (
             clk   => clk,
             reset => reset,
-            in_pos => dff_sig_in_pos,
-            in_neg => dff_sig_in_neg,
+            RX_pos => dff_sig_RX_pos,
+            RX_neg => dff_sig_RX_neg,
             DATA_OUT =>  MD_TO_FSM.DATA_OUT,
             RX_DONE =>  MD_TO_FSM.RX_DONE,
             RX_flag => MD_TO_FSM.RX_flag
@@ -155,8 +152,8 @@ begin
             data_in =>  ME_TO_FSM.data_in,    
             data_wr =>  ME_TO_FSM.data_wr,                           
             TX_en =>    ME_TO_FSM.TX_en,     
-            out_pos =>  dff_sig_out_pos,  
-            out_neg =>  dff_sig_out_neg,
+            TX_pos =>  TX_pos,  
+            TX_neg =>  TX_neg,
             TX_DONE =>       ME_TO_FSM.TX_DONE
         );
 
@@ -189,7 +186,8 @@ begin
             sram_erase => FSM_TO_SRAM.sram_erase,
 
             mode_code => mode_code,
-            synchronize => synchronize
+            synchronize => synchronize,
+            TR_output => TR_output
         );
 
     SRAM_I: SRAM
@@ -211,30 +209,16 @@ begin
         port map (
             clk   => clk,
             reset => reset,
-            input => in_pos,
-            output => dff_sig_in_pos
+            input => RX_pos,
+            output => dff_sig_RX_pos
         );
 
     DFF_in_neg: DFF
         port map (
             clk   => clk,
             reset => reset,
-            input => in_neg,
-            output => dff_sig_in_neg
-        );
-    DFF_out_pos: DFF
-        port map (
-            clk   => clk,
-            reset => reset,
-            input => dff_sig_out_pos,
-            output => out_pos
-        );
-    DFF_out_neg: DFF
-        port map (
-            clk   => clk,
-            reset => reset,
-            input => dff_sig_out_neg,
-            output => out_neg
+            input => RX_neg,
+            output => dff_sig_RX_neg
         );
 
 end architecture;

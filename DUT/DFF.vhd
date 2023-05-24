@@ -14,7 +14,7 @@ architecture rtl of DFF is
     signal dff_sig : std_logic;
 begin
 
-    process (clk)
+    process (clk, reset)
     begin
         if reset = '1' then
             dff_sig <= '0';

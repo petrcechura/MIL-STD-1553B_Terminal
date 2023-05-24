@@ -6,11 +6,11 @@ library work;
     use work.Verification_package.all;
     use work.terminal_package.all;
 
-entity Enviroment is
+entity Environment is
 end entity;
 
 
-architecture rtl of Enviroment is
+architecture rtl of Environment is
 
     -- clock
     constant clk_period : time := 31.25 ns; 
@@ -36,8 +36,8 @@ begin
     --*********************************--
     BFM_I: entity work.BFM(behavior)
         port map (
-            pos_data_out => TU_TO_BFM.in_pos,
-            neg_data_out => TU_TO_BFM.in_neg,
+            pos_data_out => TU_TO_BFM.RX_pos,
+            neg_data_out => TU_TO_BFM.RX_neg,
             command => com,
             response => response,
             data_from_TU =>  DEC_TO_BFM.data_from_TU,
@@ -48,10 +48,10 @@ begin
         port map (
             clk =>    clk,
             reset =>  rst,
-            in_pos => TU_TO_BFM.in_pos,
-            in_neg =>  TU_TO_BFM.in_neg,
-            out_pos => TU_TO_BFM.out_pos,
-            out_neg =>  TU_TO_BFM.out_neg,
+            RX_pos => TU_TO_BFM.RX_pos,
+            RX_neg =>  TU_TO_BFM.RX_neg,
+            TX_pos => TU_TO_BFM.TX_pos,
+            TX_neg =>  TU_TO_BFM.TX_neg,
             mem_wr_en => MEM_TO_TU.write_en ,
             mem_rd_en =>  MEM_TO_TU.read_en,
             mem_wr_done => MEM_TO_TU.wr_done,
@@ -79,8 +79,8 @@ begin
     port map (
         clk   => clk,
         reset => rst,
-        in_pos => TU_TO_BFM.out_pos,
-        in_neg =>  TU_TO_BFM.out_neg,
+        RX_pos => TU_TO_BFM.TX_pos,
+        RX_neg =>  TU_TO_BFM.TX_neg,
         DATA_OUT =>  DEC_TO_BFM.data_from_TU,
         RX_DONE =>  DEC_TO_BFM.RX_done
     );
@@ -625,7 +625,7 @@ begin
 
 
 
-
+    -- clock generating process
     CLK_P: process
     begin
         for i in 0 to 60000 loop

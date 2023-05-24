@@ -37,8 +37,6 @@ architecture rtl of Memory is
     signal wr_done_d, wr_done_q : std_logic;
     signal rd_done_d, rd_done_q : std_logic;
 
-    signal m : unsigned(511 downto 511-100);
-
 begin
     
     process (clk, reset)
@@ -78,6 +76,4 @@ begin
     data_out <= data_out_q;
     write_done <= wr_done_q;
     read_done <= rd_done_q;
-
-    m <= unsigned(memory_arr_q(to_integer(unsigned(subaddress)))(511 downto 511-100));
 end architecture;

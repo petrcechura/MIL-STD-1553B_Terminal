@@ -12,8 +12,8 @@ entity ManchesterEncoder is
         data_in : in std_logic_vector(15 downto 0);     -- data to be sent
         data_wr : in std_logic;                         -- data to be sent are written to a register via this wr_en bit
         TX_en : in std_logic_vector(1 downto 0);        -- 01 = status word, 10 = data word -> enables transfer; "00" -> stops transfer
-        out_pos : out std_logic;  
-        out_neg : out std_logic;
+        TX_pos : out std_logic;  
+        TX_neg : out std_logic;
         TX_DONE : out std_logic                         -- signalization to a terminal that transfer has been completed succesfully
     );
 end entity;
@@ -82,8 +82,8 @@ begin
         data_cntr_en <= '0';
         timer_en <= '0';
         freq_divider_en <= '0';
-        out_pos <= '0';
-        out_neg <= '0';
+        TX_pos <= '0';
+        TX_neg <= '0';
         TX_DONE <= '0';
         state_d <= state_q;
 
@@ -97,7 +97,7 @@ begin
                 end if;
             when S_SYNC_POS =>
                 timer_en <= '1';
-                out_pos <= '1';
+                TX_pos <= '1';
 
                 if TX_en = "01" and timer_sync = '1' then
                     state_d <= S_SYNC_NEG;
@@ -111,7 +111,7 @@ begin
                     
             when S_SYNC_NEG =>
                 timer_en <= '1';
-                out_neg <= '1';
+                TX_neg <= '1';
 
                 if TX_en = "10" and timer_sync = '1' then
                     state_d <= S_SYNC_POS;
@@ -129,8 +129,8 @@ begin
                 freq_divider_en <= '1';
 
                 --manchester coding
-                out_pos <= not bus_clock xor data_register_q(15);
-                out_neg <= (bus_clock xor data_register_q(15));
+                TX_pos <= not bus_clock xor data_register_q(15);
+                TX_neg <= (bus_clock xor data_register_q(15));
 
                 -- when data are sent, mark FSM_Brain that it's done & go to idle
                 if data_cntr_max = '1' then
